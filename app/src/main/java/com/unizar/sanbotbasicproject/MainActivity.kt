@@ -19,6 +19,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.sanbot.opensdk.base.TopBaseActivity
 import com.sanbot.opensdk.beans.FuncConstant
 import com.sanbot.opensdk.function.beans.EmotionsType
@@ -64,8 +67,15 @@ class MainActivity : TopBaseActivity() {
         onMainServiceConnected()
         setContent {
             SanbotBasicProjectTheme {
-                // UI with composables
-                ControlPanel()
+                val navController = rememberNavController()
+                NavHost(navController = navController, startDestination = "main") {
+                    composable("main") {
+                        ControlPanel(onNavigateToNewScreen = { navController.navigate("new_screen") })
+                    }
+                    composable("new_screen") {
+                        NewScreen(onBack = { navController.popBackStack() })
+                    }
+                }
             }
         }
 
@@ -89,7 +99,7 @@ class MainActivity : TopBaseActivity() {
         handsControl = HandsControl(handMotionManager)
     }
     @Composable
-    fun ControlPanel() {
+    fun ControlPanel(onNavigateToNewScreen: () -> Unit) {
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center,
@@ -208,6 +218,16 @@ class MainActivity : TopBaseActivity() {
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+
+            // Navigation Button
+            Button(
+                onClick = onNavigateToNewScreen,
+                modifier = Modifier.padding(8.dp)
+            ) {
+                Text("Go to New Screen")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Exit button
             Button(
