@@ -68,12 +68,19 @@ class MainActivity : TopBaseActivity() {
         setContent {
             SanbotBasicProjectTheme {
                 val navController = rememberNavController()
+                //Parece que aqui se añaden las rutas de navegacion
                 NavHost(navController = navController, startDestination = "main") {
                     composable("main") {
-                        ControlPanel(onNavigateToStartSession = { navController.navigate("start_session") })
+                        ControlPanel(
+                            onNavigateToStartSession = { navController.navigate("start_session") },
+                            onNavigateToPostureScreen = { navController.navigate("posture_screen") }
+                        )
                     }
                     composable("start_session") {
                         StartSession()
+                    }
+                    composable("posture_screen") {
+                        PostureScreen(onOptionSelected = { /* No hace nada por ahora */ })
                     }
                 }
             }
@@ -99,7 +106,7 @@ class MainActivity : TopBaseActivity() {
         handsControl = HandsControl(handMotionManager)
     }
     @Composable
-    fun ControlPanel(onNavigateToStartSession: () -> Unit) {
+    fun ControlPanel(onNavigateToStartSession: () -> Unit, onNavigateToPostureScreen: () -> Unit) {
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center,
@@ -219,12 +226,24 @@ class MainActivity : TopBaseActivity() {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Navigation Button
-            Button(
-                onClick = onNavigateToStartSession,
-                modifier = Modifier.padding(8.dp)
-            ) {
-                Text("Ir a Comenzar Sesión")
+            // Navigation Buttons
+            Row {
+                Button(
+                    onClick = onNavigateToStartSession,
+                    modifier = Modifier.padding(8.dp)
+                ) {
+                    Text("Ir a Comenzar Sesión")
+                }
+
+                Button(
+                    onClick = onNavigateToPostureScreen,
+                    modifier = Modifier.padding(8.dp),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = colorScheme.secondary
+                    )
+                ) {
+                    Text("Ir a Posture Screen")
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
