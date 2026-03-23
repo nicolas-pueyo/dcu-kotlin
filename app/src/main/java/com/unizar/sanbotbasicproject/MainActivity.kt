@@ -68,12 +68,13 @@ class MainActivity : TopBaseActivity() {
         setContent {
             SanbotBasicProjectTheme {
                 val navController = rememberNavController()
-                //Parece que aqui se añaden las rutas de navegacion
+                // Navegación principal
                 NavHost(navController = navController, startDestination = "main") {
                     composable("main") {
                         ControlPanel(
                             onNavigateToStartSession = { navController.navigate("start_session") },
-                            onNavigateToPostureScreen = { navController.navigate("posture_screen") }
+                            onNavigateToPostureScreen = { navController.navigate("posture_screen") },
+                            onNavigateToBodySelection = { navController.navigate("body_selection") }
                         )
                     }
                     composable("start_session") {
@@ -81,6 +82,12 @@ class MainActivity : TopBaseActivity() {
                     }
                     composable("posture_screen") {
                         PostureScreen(onOptionSelected = { /* No hace nada por ahora */ })
+                    }
+                    composable("body_selection") {
+                        BodyPartSelectionScreen(
+                            onBack = { navController.popBackStack() },
+                            onOptionSelected = { part -> Log.d("Selection", "Selected: $part") }
+                        )
                     }
                 }
             }
@@ -106,7 +113,11 @@ class MainActivity : TopBaseActivity() {
         handsControl = HandsControl(handMotionManager)
     }
     @Composable
-    fun ControlPanel(onNavigateToStartSession: () -> Unit, onNavigateToPostureScreen: () -> Unit) {
+    fun ControlPanel(
+        onNavigateToStartSession: () -> Unit, 
+        onNavigateToPostureScreen: () -> Unit,
+        onNavigateToBodySelection: () -> Unit
+    ) {
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center,
@@ -227,22 +238,34 @@ class MainActivity : TopBaseActivity() {
             Spacer(modifier = Modifier.height(32.dp))
 
             // Navigation Buttons
-            Row {
-                Button(
-                    onClick = onNavigateToStartSession,
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text("Ir a Comenzar Sesión")
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Row {
+                    Button(
+                        onClick = onNavigateToStartSession,
+                        modifier = Modifier.padding(8.dp)
+                    ) {
+                        Text("Ir a Comenzar Sesión")
+                    }
+
+                    Button(
+                        onClick = onNavigateToPostureScreen,
+                        modifier = Modifier.padding(8.dp),
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = colorScheme.secondary
+                        )
+                    ) {
+                        Text("Ir a Posture Screen")
+                    }
                 }
 
                 Button(
-                    onClick = onNavigateToPostureScreen,
+                    onClick = onNavigateToBodySelection,
                     modifier = Modifier.padding(8.dp),
                     colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = colorScheme.secondary
+                        containerColor = androidx.compose.ui.graphics.Color(0xFF4CAF50)
                     )
                 ) {
-                    Text("Ir a Posture Screen")
+                    Text("Ir a Selección de Cuerpo")
                 }
             }
 
