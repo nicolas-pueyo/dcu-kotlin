@@ -70,10 +70,10 @@ class MainActivity : TopBaseActivity() {
                 val navController = rememberNavController()
                 NavHost(navController = navController, startDestination = "main") {
                     composable("main") {
-                        ControlPanel(onNavigateToNewScreen = { navController.navigate("new_screen") })
+                        ControlPanel(onNavigateToStartSession = { navController.navigate("start_session") })
                     }
-                    composable("new_screen") {
-                        NewScreen(onBack = { navController.popBackStack() })
+                    composable("start_session") {
+                        StartSession()
                     }
                 }
             }
@@ -99,7 +99,7 @@ class MainActivity : TopBaseActivity() {
         handsControl = HandsControl(handMotionManager)
     }
     @Composable
-    fun ControlPanel(onNavigateToNewScreen: () -> Unit) {
+    fun ControlPanel(onNavigateToStartSession: () -> Unit) {
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center,
@@ -221,10 +221,10 @@ class MainActivity : TopBaseActivity() {
 
             // Navigation Button
             Button(
-                onClick = onNavigateToNewScreen,
+                onClick = onNavigateToStartSession,
                 modifier = Modifier.padding(8.dp)
             ) {
-                Text("Go to New Screen")
+                Text("Ir a Comenzar Sesión")
             }
 
             Spacer(modifier = Modifier.height(16.dp))
