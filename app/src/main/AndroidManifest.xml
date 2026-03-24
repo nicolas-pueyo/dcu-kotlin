@@ -11,6 +11,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.SanbotBasicProject">
+        <meta-data android:name="RECOGNIZE_MODE" android:value="1"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -12,8 +12,7 @@ import com.sanbot.opensdk.function.unit.interfaces.speech.SpeakListener
 import com.sanbot.opensdk.function.unit.interfaces.speech.WakenListener
 import java.util.concurrent.CountDownLatch
 
-class SpeechControl(speechManager: SpeechManager) {
-    private val speechManager: SpeechManager = speechManager
+class SpeechControl(val speechManager: SpeechManager) {
     private var recognizedString: String? = null
     private var stopTalking = false
 
@@ -46,7 +45,21 @@ class SpeechControl(speechManager: SpeechManager) {
 
     // Function that stops robot speech.
     fun stopTalking() {
-        speechManager.stopSpeak()
+        if ( isRobotTalking ){
+            speechManager.stopSpeak()
+        }
+    }
+
+    fun wakeUp() {
+        speechManager.doWakeUp()
+    }
+
+    fun sleep() {
+        speechManager.doSleep()
+    }
+
+    fun setRecognizeListener(listener: RecognizeListener) {
+        speechManager.setOnSpeechListener(listener)
     }
 
     // Function that obtains the dialog that the user has said
@@ -57,7 +70,8 @@ class SpeechControl(speechManager: SpeechManager) {
         speechManager.doWakeUp()
         speechManager.setOnSpeechListener(object : RecognizeListener {
             override fun onError(engine: Int, errorCode: Int) {
-                TODO("Not yet implemented")
+                //Aumentar la gestion de errores?
+                Log.e("SpeechControl", "Error reconocimiento. engine=$engine errorCode=$errorCode")
             }
 
             override fun onRecognizeResult(grammar: Grammar): Boolean {
@@ -71,19 +85,71 @@ class SpeechControl(speechManager: SpeechManager) {
             }
 
             override fun onRecognizeVolume(i: Int) {
+                Log.d("SpeechControl", "Volumen detectado: $i")
             }
 
             override fun onStartRecognize() {
-                TODO("Not yet implemented")
+                Log.d("SpeechControl", "Inicio de reconocimiento")
             }
 
             override fun onStopRecognize() {
-                TODO("Not yet implemented")
+                Log.d("SpeechControl", "Fin de reconocimiento")
             }
         })
         while (recognizedString == null || (recognizedString ?: "").isEmpty()) {
         }
         return recognizedString
+    }
+
+
+    //Inicia la escucha como la funcion anterior pero con una funcion de callback
+    fun startListening(
+        onRecognized: (String) -> Unit,         // Funcion de callback
+        onError: ((Int, Int) -> Unit)? = null,  // Predefinir como null
+        onStart: (() -> Unit)? = null,
+        onStop: (() -> Unit)? = null,
+        blockRobotResponse: Boolean = true  //Esto realemnte se solapa con el meta-data del manifest(revisar)
+    ) {
+        speechManager.doWakeUp()                // pone al robot en modo despierto para que pueda escuchar
+
+        speechManager.setOnSpeechListener(object : RecognizeListener {
+
+            override fun onError(engine: Int, errorCode: Int) {
+                Log.e("SpeechControl", "Error: $engine / $errorCode")
+                onError?.invoke(engine, errorCode) // En caso de tener como parametro alguna funcion de gestion de error se ejecutaria
+            }
+
+            override fun onRecognizeResult(grammar: Grammar): Boolean {
+                val text = grammar.text?.trim().orEmpty()
+                if (text.isNotEmpty()) {
+                    Log.d("SpeechControl", "Recognized: $text")
+                    onRecognized(text)
+                }
+                return blockRobotResponse
+            }
+
+            override fun onRecognizeText(recognizeText: RecognizeTextBean) {
+                // opcional
+            }
+
+            override fun onRecognizeVolume(i: Int) {
+                // opcional
+            }
+
+            override fun onStartRecognize() {
+                Log.d("SpeechControl", "Start listening")
+                onStart?.invoke()
+            }
+
+            override fun onStopRecognize() {
+                Log.d("SpeechControl", "Stop listening")
+                onStop?.invoke()
+            }
+        })
+    }
+
+    fun stopListening() {
+        speechManager.doSleep()
     }
 
     // Function that waits for the robot to finish speaking
@@ -204,5 +270,3 @@ class SpeechControl(speechManager: SpeechManager) {
         private val speakOption: SpeakOption = SpeakOption()
     }
 }
-
-

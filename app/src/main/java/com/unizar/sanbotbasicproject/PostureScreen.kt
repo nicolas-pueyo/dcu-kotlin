@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -18,9 +19,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sanbot.opensdk.function.beans.speech.Grammar
+import com.sanbot.opensdk.function.unit.interfaces.speech.RecognizeListener
+import com.unizar.sanbotbasicproject.robotControl.SpeechControl
 
 @Composable
-fun PostureScreen(onOptionSelected: (String) -> Unit) {
+fun PostureScreen(onOptionSelected: (String) -> Unit, speechControl: SpeechControl) {
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
@@ -32,7 +36,17 @@ fun PostureScreen(onOptionSelected: (String) -> Unit) {
 
         // Calculamos escalas basadas en el tamaño de la pantalla (Responsive por si acaso)
         val baseUnit = if (isLandscape) screenHeight else screenWidth
-        
+
+        // Gestion de speechcontrol al entrar y salir de la pantalla
+        DisposableEffect(Unit) {
+            startPostureVoiceFlow(speechControl, onOptionSelected)
+
+            onDispose {
+                stopPostureVoiceFlow(speechControl)
+            }
+        }
+
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -165,4 +179,45 @@ fun PostureOptionCard(
             )
         }
     }
+}
+
+
+//FUNCIONES SPEECH CONTROL
+
+/*
+*  Esta funcion se ocupa de gestionar la inicialización y la gestion del robot para escuchar y procesar la informacion
+*  Además manda un mensaje por voz para avisar de que solicita
+* */
+
+fun startPostureVoiceFlow(
+    speechControl: SpeechControl,
+    onOptionSelected: (String) -> Unit
+) {
+    speechControl.startListening({ text ->
+        val texto = text.lowercase()
+
+        when {
+            "sentado" in texto || "silla" in texto -> {
+                onOptionSelected("SITTING")
+                speechControl.stopListening()
+            }
+            "de pie" in texto || "pie" in texto || "levantado" in texto -> {
+                onOptionSelected("STANDING")
+                speechControl.stopListening()
+            }
+        }
+    })
+
+    speechControl.wakeUp()                                                   // Pone en modo despierto al robot
+    speechControl.talk("¿Cómo prefieres hacer ejercicio hoy? sentado o de pie")    // Mensaje por voz para el user
+
+
+}
+
+fun stopPostureVoiceFlow(
+    speechControl: SpeechControl
+) {
+    speechControl.stopTalking()
+    speechControl.sleep()
+
 }
