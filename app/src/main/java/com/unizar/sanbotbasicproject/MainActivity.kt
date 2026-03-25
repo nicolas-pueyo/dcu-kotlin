@@ -4,28 +4,14 @@ import android.os.Bundle
 import android.util.Log
 import android.view.WindowManager
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.material3.MaterialTheme.colorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.*
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.sanbot.opensdk.base.TopBaseActivity
 import com.sanbot.opensdk.beans.FuncConstant
-import com.sanbot.opensdk.function.beans.EmotionsType
-import com.sanbot.opensdk.function.beans.LED
 import com.sanbot.opensdk.function.unit.HeadMotionManager
 import com.sanbot.opensdk.function.unit.SystemManager
 import com.sanbot.opensdk.function.unit.SpeechManager
@@ -54,45 +40,129 @@ class MainActivity : TopBaseActivity() {
     lateinit var handMotionManager: WingMotionManager
     lateinit var handsControl: HandsControl
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Register the activity
         register(MainActivity::class.java)
-
         window.setFlags(
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
         )
         super.onCreate(savedInstanceState)
         onMainServiceConnected()
+        
         setContent {
             SanbotBasicProjectTheme {
                 val navController = rememberNavController()
-                // Navegación principal
-                NavHost(navController = navController, startDestination = "main") {
-                    composable("main") {
-                        ControlPanel(
-                            onNavigateToStartSession = { navController.navigate("start_session") },
-                            onNavigateToPostureScreen = { navController.navigate("posture_screen") },
-                            onNavigateToBodySelection = { navController.navigate("body_selection") }
+                
+                // Estado global de la sesión de ejercicio
+                var currentRoutine by remember { mutableStateOf<List<Exercise>>(emptyList()) }
+                var currentExerciseIndex by remember { mutableIntStateOf(0) }
+                var totalTimeSeconds by remember { mutableIntStateOf(0) }
+
+                NavHost(navController = navController, startDestination = "start_session") {
+                    
+                    composable("start_session") {
+                        totalTimeSeconds = 0 // Reset
+                        StartSession(
+                            onStartClick = { navController.navigate("posture_screen") },
+                            speechControl = speechControl
                         )
                     }
-                    composable("start_session") {
-                        StartSession()
-                    }
+
                     composable("posture_screen") {
-                        PostureScreen(onOptionSelected = { /* No hace nada por ahora */ })
+                        PostureScreen(
+                            onOptionSelected = { posture -> 
+                                Log.d("Selection", "Selected posture: $posture")
+                                navController.navigate("body_selection/$posture") 
+                            },
+                            speechControl = speechControl
+                        )
                     }
-                    composable("body_selection") {
+
+                    composable(
+                        "body_selection/{posture}",
+                        arguments = listOf(navArgument("posture") { type = NavType.StringType })
+                    ) { backStackEntry ->
+                        val posture = backStackEntry.arguments?.getString("posture") ?: "SITTING"
                         BodyPartSelectionScreen(
                             onBack = { navController.popBackStack() },
-                            onOptionSelected = { part -> Log.d("Selection", "Selected: $part") }
+                            onOptionSelected = { part -> 
+                                currentRoutine = RoutineProvider.getRoutine(posture, part)
+                                currentExerciseIndex = 0
+                                navController.navigate("exercise_preparation/$posture/$part")
+                            }
+                        )
+                    }
+
+                    composable(
+                        "exercise_preparation/{posture}/{bodyPart}",
+                        arguments = listOf(
+                            navArgument("posture") { type = NavType.StringType },
+                            navArgument("bodyPart") { type = NavType.StringType }
+                        )
+                    ) { 
+                        val exercise = currentRoutine.getOrNull(currentExerciseIndex)
+                        if (exercise != null) {
+                            ExercisePreparationScreen(
+                                posture = it.arguments?.getString("posture") ?: "",
+                                bodyPart = exercise.name, // Usamos el nombre del ejercicio
+                                onCountdownFinished = {
+                                    navController.navigate("exercise_execution")
+                                }
+                            )
+                        }
+                    }
+
+                    composable("exercise_execution") {
+                        val exercise = currentRoutine.getOrNull(currentExerciseIndex)
+                        if (exercise != null) {
+                            ExerciseExecutionScreen(
+                                exercise = exercise,
+                                onExerciseFinished = { spent ->
+                                    totalTimeSeconds += spent
+                                    if (currentExerciseIndex < currentRoutine.size - 1) {
+                                        navController.navigate("rest_screen")
+                                    } else {
+                                        navController.navigate("routine_finished/true")
+                                    }
+                                },
+                                onFinishRoutine = { spent ->
+                                    totalTimeSeconds += spent
+                                    navController.navigate("routine_finished/false")
+                                }
+                            )
+                        }
+                    }
+
+                    composable("rest_screen") {
+                        RestScreen(
+                            onContinue = {
+                                currentExerciseIndex++
+                                navController.navigate("exercise_execution")
+                            },
+                            onFinishEarly = {
+                                navController.navigate("routine_finished/false")
+                            }
+                        )
+                    }
+
+                    composable(
+                        "routine_finished/{completed}",
+                        arguments = listOf(navArgument("completed") { type = NavType.BoolType })
+                    ) { backStackEntry ->
+                        val completed = backStackEntry.arguments?.getBoolean("completed") ?: false
+                        RoutineFinishedScreen(
+                            totalMinutes = totalTimeSeconds / 60,
+                            completed = completed,
+                            onBackToStart = {
+                                navController.navigate("start_session") {
+                                    popUpTo("start_session") { inclusive = true }
+                                }
+                            }
                         )
                     }
                 }
             }
         }
-
     }
 
     override fun onMainServiceConnected() {
@@ -111,213 +181,5 @@ class MainActivity : TopBaseActivity() {
         hardwareControl = HardwareControl(hardwareManager)
         handMotionManager = getUnitManager(FuncConstant.WINGMOTION_MANAGER) as WingMotionManager
         handsControl = HandsControl(handMotionManager)
-    }
-    @Composable
-    fun ControlPanel(
-        onNavigateToStartSession: () -> Unit, 
-        onNavigateToPostureScreen: () -> Unit,
-        onNavigateToBodySelection: () -> Unit
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(text = "Basic Functions", modifier = Modifier.padding(bottom = 20.dp))
-            // Head Motion
-            Row {
-                // Left button
-                Button(
-                    onClick = { moveHead("LEFT") },
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text("Left")
-                }
-
-                // Right button
-                Button(
-                    onClick = { moveHead("RIGHT") },
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text("Right")
-                }
-
-                // Center button
-                Button(
-                    onClick = { moveHead("CENTER") },
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text("Center")
-                }
-
-                // Up button
-                Button(
-                    onClick = { moveHead("UP") },
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text("Up")
-                }
-
-                // Down button
-                Button(
-                    onClick = { moveHead("DOWN") },
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text("Down")
-                }
-            }
-            // Emotions and Speech
-            Row {
-                Button(
-                    onClick = {systemControl.setEmotion(EmotionsType.FAINT)},
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text("Change emotion")
-                }
-                Button(
-                    onClick = {speechControl.talk("Hola, soy Sanbot, ¿cómo estás?",50)},
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text("Greetings")
-                }
-            }
-            // Wheel Motion
-            Row {
-                Button(
-                    onClick = {wheelControl.controlBasicWheels(WheelControl.WheelActions.LEFT)},
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text("Turn Left")
-                }
-                Button(
-                    onClick = {wheelControl.controlBasicWheels(WheelControl.WheelActions.SPIN)},
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text("Spin")
-                }
-                Button(
-                    onClick = {wheelControl.controlBasicWheels(WheelControl.WheelActions.RIGHT)},
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text("Turn Right")
-                }
-            }
-            // LEDs Functions
-            Row {
-                Button(
-                    onClick = {hardwareControl.turnOnLED(LED.PART_ALL, LED.MODE_BLUE)},
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text("Turn On LEDs")
-                }
-                Button(
-                    onClick = {hardwareControl.turnOffLED(LED.PART_ALL)},
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text("Turn Off LEDs")
-                }
-            }
-            Row {
-                Button(
-                    onClick = {handsControl.controlBasicArms(HandsControl.ActionsArms.RAISE_ARM,
-                        HandsControl.TypeArm.RIGHT)},
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text("Raise Arms")
-                }
-                Button(
-                    onClick = {handsControl.controlBasicArms(HandsControl.ActionsArms.LOWER_ARM,
-                        HandsControl.TypeArm.RIGHT)},
-                    modifier = Modifier.padding(8.dp)
-                )
-                {
-                    Text("Lower Arms")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Navigation Buttons
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Row {
-                    Button(
-                        onClick = onNavigateToStartSession,
-                        modifier = Modifier.padding(8.dp)
-                    ) {
-                        Text("Ir a Comenzar Sesión")
-                    }
-
-                    Button(
-                        onClick = onNavigateToPostureScreen,
-                        modifier = Modifier.padding(8.dp),
-                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                            containerColor = colorScheme.secondary
-                        )
-                    ) {
-                        Text("Ir a Posture Screen")
-                    }
-                }
-
-                Button(
-                    onClick = onNavigateToBodySelection,
-                    modifier = Modifier.padding(8.dp),
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = androidx.compose.ui.graphics.Color(0xFF4CAF50)
-                    )
-                ) {
-                    Text("Ir a Selección de Cuerpo")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Exit button
-            Button(
-                onClick = { finish() },
-                modifier = Modifier.padding(8.dp),
-                // Red color
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                    containerColor = colorScheme.error
-                )
-            ) {
-                Text("Quit")
-            }
-        }
-    }
-
-    private fun moveHead(direction: String) {
-            when (direction) {
-                "LEFT" -> headControl.controlHeadBasic(HeadControl.HeadActions.LEFT)
-                "RIGHT" -> headControl.controlHeadBasic(HeadControl.HeadActions.RIGHT)
-                "CENTER" -> headControl.controlHeadBasic(headActions = HeadControl.HeadActions.CENTER)
-                "UP" -> headControl.controlHeadBasic(headActions = HeadControl.HeadActions.UP)
-                "DOWN" -> headControl.controlHeadBasic(headActions = HeadControl.HeadActions.DOWN)
-            }
-
-    }
-
-}
-
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-// Method that contains the buttons interaction
-fun setonClicks()
-{
-
-}
-
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    SanbotBasicProjectTheme {
-        Greeting("Android")
     }
 }

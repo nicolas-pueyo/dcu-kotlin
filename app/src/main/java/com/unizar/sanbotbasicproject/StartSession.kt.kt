@@ -9,43 +9,34 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.unizar.sanbotbasicproject.robotControl.SpeechControl
 
 @Composable
-fun StartSession() {
+fun StartSession(onStartClick: () -> Unit, speechControl: SpeechControl) {
+    // Gestion de speechcontrol al entrar y salir de la pantalla
+    DisposableEffect(Unit) {
+        startStartSessionVoiceFlow(speechControl, onStartClick)
+
+        onDispose {
+            stopStartSessionVoiceFlow(speechControl)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF121212)) // Fondo casi negro como en la imagen
             .padding(24.dp)
     ) {
-        // 1. Indicador de estado (Arriba a la derecha)
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .background(Color(0xFF1E1E1E), RoundedCornerShape(20.dp))
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .background(Color(0xFF4CAF50), CircleShape) // Punto verde
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Robot listo y escuchando",
-                color = Color.White,
-                style = MaterialTheme.typography.labelLarge
-            )
-        }
 
-        // 2. Contenedor central
+        // Contenedor central
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center,
@@ -53,7 +44,7 @@ fun StartSession() {
         ) {
             // BOTÓN PRINCIPAL AZUL
             Button(
-                onClick = { /* Acción */ },
+                onClick = onStartClick,
                 modifier = Modifier
                     .size(width = 560.dp, height = 300.dp), // Más grande y horizontal
                 shape = RoundedCornerShape(32.dp), // Bordes redondeados
@@ -83,7 +74,7 @@ fun StartSession() {
 
             Spacer(modifier = Modifier.height(40.dp))
 
-            // 3. Pista de voz (Fondo oscuro con icono de micro)
+            // Pista de voz (Fondo oscuro con icono de micro)
             Surface(
                 color = Color(0xFF1E1E1E),
                 shape = RoundedCornerShape(16.dp),
@@ -111,4 +102,28 @@ fun StartSession() {
             }
         }
     }
+}
+
+fun startStartSessionVoiceFlow(
+    speechControl: SpeechControl,
+    onStartClick: () -> Unit
+) {
+    speechControl.startListening({ text ->
+        val texto = text.lowercase()
+
+        if ("empezar" in texto || "ejercicio" in texto || "comenzar" in texto) {
+            onStartClick()
+            speechControl.stopListening()
+        }
+    })
+
+    speechControl.wakeUp()
+    speechControl.talk("Hola, pulsa el botón o dime empezar ejercicio para comenzar")
+}
+
+fun stopStartSessionVoiceFlow(
+    speechControl: SpeechControl
+) {
+    speechControl.stopTalking()
+    speechControl.sleep()
 }
