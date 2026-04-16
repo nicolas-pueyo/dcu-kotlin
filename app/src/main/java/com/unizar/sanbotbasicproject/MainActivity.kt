@@ -64,6 +64,7 @@ class MainActivity : TopBaseActivity() {
                         totalTimeSeconds = 0 // Reset
                         StartSession(
                             onStartClick = { navController.navigate("posture_screen") },
+                            onVideoClick = { navController.navigate("video_test") },
                             speechControl = speechControl
                         )
                     }
@@ -159,6 +160,11 @@ class MainActivity : TopBaseActivity() {
                                 }
                             }
                         )
+                    }
+
+                    // Nueva pantalla de video accesible directamente para pruebas
+                    composable("video_test") {
+                        VideoScreen(onFinish = { navController.popBackStack() })
                     }
                 }
             }

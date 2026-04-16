@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MonitorHeart
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,7 +18,11 @@ import com.unizar.sanbotbasicproject.robotControl.SpeechControl
 import com.unizar.sanbotbasicproject.ui.VoiceHud
 
 @Composable
-fun StartSession(onStartClick: () -> Unit, speechControl: SpeechControl) {
+fun StartSession(
+    onStartClick: () -> Unit, 
+    onVideoClick: () -> Unit,
+    speechControl: SpeechControl
+) {
     var isListening by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
@@ -51,7 +56,7 @@ fun StartSession(onStartClick: () -> Unit, speechControl: SpeechControl) {
                     .size(12.dp)
                     .background(if (isListening) Color(0xFF4CAF50) else Color.Gray, CircleShape)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = if (isListening) "Robot listo" else "Cargando...",
                 color = Color.White,
@@ -87,7 +92,20 @@ fun StartSession(onStartClick: () -> Unit, speechControl: SpeechControl) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(60.dp))
+            Spacer(modifier = Modifier.height(30.dp))
+
+            // Botón de prueba de video
+            OutlinedButton(
+                onClick = onVideoClick,
+                border = ButtonDefaults.outlinedButtonBorder.copy(width = 1.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+            ) {
+                Icon(Icons.Default.VideoLibrary, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Probar Reproductor de Video")
+            }
+
+            Spacer(modifier = Modifier.height(30.dp))
 
             // Usamos el componente VoiceHud
             VoiceHud(
@@ -117,15 +135,6 @@ fun startStartSessionVoiceFlow(
 
     speechControl.wakeUp()
     speechControl.talk("Hola, pulsa el botón o dime empezar ejercicio para comenzar")
-
-    // SIMULAR
-//    onListeningStateChange(true) // Hace que el VoiceHud se ponga verde inmediatamente
-//
-//    GlobalScope.launch(Dispatchers.Main) {
-//        delay(5000) // Espera 5 segundos simuando que el robot procesa
-//        onStartClick() // ¡Salta a la siguiente pantalla!
-//    }
-
 }
 
 fun stopStartSessionVoiceFlow(
