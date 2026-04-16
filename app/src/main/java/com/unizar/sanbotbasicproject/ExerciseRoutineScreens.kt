@@ -16,6 +16,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sanbot.opensdk.function.beans.EmotionsType
+import com.sanbot.opensdk.function.beans.LED
+import com.unizar.sanbotbasicproject.robotControl.HardwareControl
+import com.unizar.sanbotbasicproject.robotControl.SystemControl
 import kotlinx.coroutines.delay
 import java.util.Locale
 
@@ -76,11 +80,24 @@ object RoutineProvider {
 fun ExerciseExecutionScreen(
     exercise: Exercise,
     onExerciseFinished: (Int) -> Unit, // pass duration spent
-    onFinishRoutine: (Int) -> Unit
+    onFinishRoutine: (Int) -> Unit,
+    systemControl: SystemControl,
+    hardwareControl: HardwareControl
 ) {
     var timeLeft by remember { mutableIntStateOf(exercise.durationSeconds) }
     var isPaused by remember { mutableStateOf(false) }
     var totalSpentInThisExercise by remember { mutableIntStateOf(0) }
+
+    // Reacción física al iniciar el ejercicio o cambiar estado de pausa
+    LaunchedEffect(isPaused) {
+        if (!isPaused) {
+            systemControl.setEmotion(EmotionsType.SMILE)
+            hardwareControl.setEarsLED(LED.MODE_BLUE)
+        } else {
+            systemControl.setEmotion(EmotionsType.NORMAL)
+            hardwareControl.setEarsLED(LED.MODE_YELLOW)
+        }
+    }
 
     LaunchedEffect(key1 = timeLeft, key2 = isPaused) {
         if (!isPaused && timeLeft > 0) {
@@ -161,7 +178,7 @@ fun ExerciseExecutionScreen(
 
                 Button(
                     onClick = { isPaused = !isPaused },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF941D)), // Naranja de la imagen
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isPaused) Color(0xFF4CAF50) else Color(0xFFFF941D)),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.height(84.dp).width(280.dp)
                 ) {
@@ -194,9 +211,18 @@ fun ExerciseExecutionScreen(
 @Composable
 fun RestScreen(
     onContinue: () -> Unit,
-    onFinishEarly: () -> Unit
+    onFinishEarly: () -> Unit,
+    systemControl: SystemControl,
+    hardwareControl: HardwareControl
 ) {
     var timeLeft by remember { mutableIntStateOf(90) } // 1:30
+
+    // Reacción física al entrar en el descanso
+    DisposableEffect(Unit) {
+        systemControl.setEmotion(EmotionsType.NORMAL)
+        hardwareControl.setEarsLED(LED.MODE_GREEN)
+        onDispose { }
+    }
 
     LaunchedEffect(key1 = timeLeft) {
         if (timeLeft > 0) {
@@ -268,8 +294,18 @@ fun RestScreen(
 fun RoutineFinishedScreen(
     totalMinutes: Int,
     completed: Boolean,
-    onBackToStart: () -> Unit
+    onBackToStart: () -> Unit,
+    systemControl: SystemControl,
+    hardwareControl: HardwareControl
 ) {
+    // Reacción física al terminar la rutina
+    DisposableEffect(Unit) {
+        systemControl.setEmotion(EmotionsType.LAUGHTER)
+        // Parpadeo aleatorio festivo (300ms entre cambios, 5 colores)
+        hardwareControl.setEarsLED(LED.MODE_FLICKER_RANDOM, 3, 5)
+        onDispose { }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()

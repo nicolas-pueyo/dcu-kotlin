@@ -17,12 +17,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sanbot.opensdk.function.beans.EmotionsType
+import com.sanbot.opensdk.function.beans.LED
+import com.unizar.sanbotbasicproject.robotControl.HardwareControl
 import com.unizar.sanbotbasicproject.robotControl.SpeechControl
+import com.unizar.sanbotbasicproject.robotControl.SystemControl
 import com.unizar.sanbotbasicproject.ui.VoiceHud
-// import kotlinx.coroutines.* // SIMULAR
 
 @Composable
-fun PostureScreen(onOptionSelected: (String) -> Unit, speechControl: SpeechControl) {
+fun PostureScreen(
+    onOptionSelected: (String) -> Unit, 
+    speechControl: SpeechControl,
+    systemControl: SystemControl,
+    hardwareControl: HardwareControl
+) {
     var isListening by remember { mutableStateOf(false) }
 
     BoxWithConstraints(
@@ -40,7 +48,9 @@ fun PostureScreen(onOptionSelected: (String) -> Unit, speechControl: SpeechContr
             startPostureVoiceFlow(
                 speechControl = speechControl, 
                 onOptionSelected = onOptionSelected,
-                onListeningStateChange = { isListening = it }
+                onListeningStateChange = { isListening = it },
+                systemControl = systemControl,
+                hardwareControl = hardwareControl
             )
 
             onDispose {
@@ -162,7 +172,9 @@ fun PostureOptionCard(
 fun startPostureVoiceFlow(
     speechControl: SpeechControl,
     onOptionSelected: (String) -> Unit,
-    onListeningStateChange: (Boolean) -> Unit
+    onListeningStateChange: (Boolean) -> Unit,
+    systemControl: SystemControl,
+    hardwareControl: HardwareControl
 ) {
     speechControl.startListening(
         onRecognized = { text ->
@@ -183,15 +195,13 @@ fun startPostureVoiceFlow(
     )
 
     speechControl.wakeUp()
+    
+    // Reacción física: Duda y Orejas Azules
+    systemControl.setEmotion(EmotionsType.QUESTION)
+    hardwareControl.setLED(LED.PART_LEFT_HEAD, LED.MODE_BLUE)
+    hardwareControl.setLED(LED.PART_RIGHT_HEAD, LED.MODE_BLUE)
+    
     speechControl.talk("¿Cómo prefieres hacer ejercicio hoy? sentado o de pie")
-
-    // SIMULAR
-//    onListeningStateChange(true)
-//
-//    GlobalScope.launch(Dispatchers.Main) {
-//        delay(5000) // Espera 5 segundos simulando que el usuario responde
-//        onOptionSelected("SITTING") // Simulamos que elige sentado
-//    }
 }
 
 fun stopPostureVoiceFlow(

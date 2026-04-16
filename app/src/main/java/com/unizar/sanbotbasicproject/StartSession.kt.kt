@@ -1,5 +1,4 @@
 package com.unizar.sanbotbasicproject
-// import kotlinx.coroutines.* // SIMULAR
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -14,14 +13,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.sanbot.opensdk.function.beans.EmotionsType
+import com.sanbot.opensdk.function.beans.LED
+import com.unizar.sanbotbasicproject.robotControl.HardwareControl
 import com.unizar.sanbotbasicproject.robotControl.SpeechControl
+import com.unizar.sanbotbasicproject.robotControl.SystemControl
 import com.unizar.sanbotbasicproject.ui.VoiceHud
 
 @Composable
 fun StartSession(
-    onStartClick: () -> Unit, 
+    onStartClick: () -> Unit,
     onVideoClick: () -> Unit,
-    speechControl: SpeechControl
+    speechControl: SpeechControl,
+    systemControl: SystemControl,
+    hardwareControl: HardwareControl
 ) {
     var isListening by remember { mutableStateOf(false) }
 
@@ -29,7 +34,9 @@ fun StartSession(
         startStartSessionVoiceFlow(
             speechControl = speechControl,
             onStartClick = onStartClick,
-            onListeningStateChange = { isListening = it }
+            onListeningStateChange = { isListening = it },
+            systemControl = systemControl,
+            hardwareControl = hardwareControl
         )
 
         onDispose {
@@ -56,7 +63,7 @@ fun StartSession(
                     .size(12.dp)
                     .background(if (isListening) Color(0xFF4CAF50) else Color.Gray, CircleShape)
             )
-                        Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = if (isListening) "Robot listo" else "Cargando...",
                 color = Color.White,
@@ -119,7 +126,9 @@ fun StartSession(
 fun startStartSessionVoiceFlow(
     speechControl: SpeechControl,
     onStartClick: () -> Unit,
-    onListeningStateChange: (Boolean) -> Unit
+    onListeningStateChange: (Boolean) -> Unit,
+    systemControl: SystemControl,
+    hardwareControl: HardwareControl
 ) {
     speechControl.startListening(
         onRecognized = { text ->
@@ -134,6 +143,11 @@ fun startStartSessionVoiceFlow(
     )
 
     speechControl.wakeUp()
+
+    // REACCIÓN: Sonrisa y orejas azules (fijo)
+    systemControl.setEmotion(EmotionsType.SMILE)
+    hardwareControl.setEarsLED(LED.MODE_BLUE)
+
     speechControl.talk("Hola, pulsa el botón o dime empezar ejercicio para comenzar")
 }
 

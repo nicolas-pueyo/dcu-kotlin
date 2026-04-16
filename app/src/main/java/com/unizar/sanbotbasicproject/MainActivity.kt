@@ -65,7 +65,9 @@ class MainActivity : TopBaseActivity() {
                         StartSession(
                             onStartClick = { navController.navigate("posture_screen") },
                             onVideoClick = { navController.navigate("video_test") },
-                            speechControl = speechControl
+                            speechControl = speechControl,
+                            systemControl = systemControl,
+                            hardwareControl = hardwareControl
                         )
                     }
 
@@ -75,7 +77,9 @@ class MainActivity : TopBaseActivity() {
                                 Log.d("Selection", "Selected posture: $posture")
                                 navController.navigate("body_selection/$posture") 
                             },
-                            speechControl = speechControl
+                            speechControl = speechControl,
+                            systemControl = systemControl,
+                            hardwareControl = hardwareControl
                         )
                     }
 
@@ -90,7 +94,10 @@ class MainActivity : TopBaseActivity() {
                                 currentRoutine = RoutineProvider.getRoutine(posture, part)
                                 currentExerciseIndex = 0
                                 navController.navigate("exercise_preparation/$posture/$part")
-                            }
+                            },
+                            speechControl = speechControl,
+                            systemControl = systemControl,
+                            hardwareControl = hardwareControl
                         )
                     }
 
@@ -100,15 +107,17 @@ class MainActivity : TopBaseActivity() {
                             navArgument("posture") { type = NavType.StringType },
                             navArgument("bodyPart") { type = NavType.StringType }
                         )
-                    ) { 
+                    ) { backStackEntry ->
                         val exercise = currentRoutine.getOrNull(currentExerciseIndex)
                         if (exercise != null) {
                             ExercisePreparationScreen(
-                                posture = it.arguments?.getString("posture") ?: "",
-                                bodyPart = exercise.name, // Usamos el nombre del ejercicio
+                                posture = backStackEntry.arguments?.getString("posture") ?: "",
+                                bodyPart = exercise.name, 
                                 onCountdownFinished = {
                                     navController.navigate("exercise_execution")
-                                }
+                                },
+                                systemControl = systemControl,
+                                hardwareControl = hardwareControl
                             )
                         }
                     }
@@ -129,7 +138,9 @@ class MainActivity : TopBaseActivity() {
                                 onFinishRoutine = { spent ->
                                     totalTimeSeconds += spent
                                     navController.navigate("routine_finished/false")
-                                }
+                                },
+                                systemControl = systemControl,
+                                hardwareControl = hardwareControl
                             )
                         }
                     }
@@ -142,7 +153,9 @@ class MainActivity : TopBaseActivity() {
                             },
                             onFinishEarly = {
                                 navController.navigate("routine_finished/false")
-                            }
+                            },
+                            systemControl = systemControl,
+                            hardwareControl = hardwareControl
                         )
                     }
 
@@ -158,7 +171,9 @@ class MainActivity : TopBaseActivity() {
                                 navController.navigate("start_session") {
                                     popUpTo("start_session") { inclusive = true }
                                 }
-                            }
+                            },
+                            systemControl = systemControl,
+                            hardwareControl = hardwareControl
                         )
                     }
 
@@ -187,5 +202,8 @@ class MainActivity : TopBaseActivity() {
         hardwareControl = HardwareControl(hardwareManager)
         handMotionManager = getUnitManager(FuncConstant.WINGMOTION_MANAGER) as WingMotionManager
         handsControl = HandsControl(handMotionManager)
+        
+        // Ajuste de brillo (Nivel 2) según sección 3.3.8
+        hardwareControl.setBrightness(2)
     }
 }

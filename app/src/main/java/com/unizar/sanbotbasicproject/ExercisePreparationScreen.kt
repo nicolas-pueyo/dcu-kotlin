@@ -14,13 +14,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sanbot.opensdk.function.beans.EmotionsType
+import com.sanbot.opensdk.function.beans.LED
+import com.unizar.sanbotbasicproject.robotControl.HardwareControl
+import com.unizar.sanbotbasicproject.robotControl.SystemControl
 import kotlinx.coroutines.delay
 
 @Composable
 fun ExercisePreparationScreen(
     posture: String, // "SITTING" or "STANDING"
     bodyPart: String,
-    onCountdownFinished: () -> Unit
+    onCountdownFinished: () -> Unit,
+    systemControl: SystemControl,
+    hardwareControl: HardwareControl
 ) {
     var timeLeft by remember { mutableIntStateOf(10) }
 
@@ -29,7 +35,7 @@ fun ExercisePreparationScreen(
         "ARMS_BACK" -> "Estiramiento de brazos"
         "LEGS_FEET" -> "Movilidad de piernas"
         "FULL_BODY" -> "Calentamiento general"
-        else -> "Ejercicio suave"
+        else -> bodyPart // En caso de que pasemos el nombre directo del ejercicio
     }
 
     // Mensaje basado en la postura
@@ -37,6 +43,17 @@ fun ExercisePreparationScreen(
         "Busca una silla y ponte cómodo.\nVamos a empezar"
     } else {
         "Ponte de pie y busca un lugar despejado.\nVamos a empezar"
+    }
+
+    // Reacción física inicial al entrar en la pantalla
+    DisposableEffect(Unit) {
+        systemControl.setEmotion(EmotionsType.SURPRISE)
+        // Parpadeo lento (10 = 1000ms = 1 segundo de intervalo)
+        hardwareControl.setEarsLED(LED.MODE_FLICKER_BLUE, 10, 0)
+
+        onDispose {
+            // Limpieza opcional al salir
+        }
     }
 
     LaunchedEffect(key1 = timeLeft) {

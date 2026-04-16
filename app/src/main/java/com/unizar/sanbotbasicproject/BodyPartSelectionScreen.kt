@@ -10,7 +10,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,9 +19,38 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sanbot.opensdk.function.beans.EmotionsType
+import com.sanbot.opensdk.function.beans.LED
+import com.unizar.sanbotbasicproject.robotControl.HardwareControl
+import com.unizar.sanbotbasicproject.robotControl.SpeechControl
+import com.unizar.sanbotbasicproject.robotControl.SystemControl
+import com.unizar.sanbotbasicproject.ui.VoiceHud
 
 @Composable
-fun BodyPartSelectionScreen(onBack: () -> Unit, onOptionSelected: (String) -> Unit) {
+fun BodyPartSelectionScreen(
+    onBack: () -> Unit, 
+    onOptionSelected: (String) -> Unit,
+    speechControl: SpeechControl,
+    systemControl: SystemControl,
+    hardwareControl: HardwareControl
+) {
+    var isListening by remember { mutableStateOf(false) }
+
+    // Reacción física al entrar en la pantalla
+    DisposableEffect(Unit) {
+        startBodyPartVoiceFlow(
+            speechControl = speechControl,
+            onOptionSelected = onOptionSelected,
+            onListeningStateChange = { isListening = it },
+            systemControl = systemControl,
+            hardwareControl = hardwareControl
+        )
+        onDispose {
+            speechControl.stopTalking()
+            speechControl.sleep()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -53,7 +82,7 @@ fun BodyPartSelectionScreen(onBack: () -> Unit, onOptionSelected: (String) -> Un
             }
         }
 
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         // Título central
         Text(
@@ -65,12 +94,13 @@ fun BodyPartSelectionScreen(onBack: () -> Unit, onOptionSelected: (String) -> Un
             lineHeight = 52.sp
         )
 
-        Spacer(modifier = Modifier.height(60.dp))
+        Spacer(modifier = Modifier.height(48.dp))
 
         // Fila de Tarjetas
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .weight(1f)
                 .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(24.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -97,6 +127,14 @@ fun BodyPartSelectionScreen(onBack: () -> Unit, onOptionSelected: (String) -> Un
                 onClick = { onOptionSelected("FULL_BODY") }
             )
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // HUD de Voz Reutilizable
+        VoiceHud(
+            isListening = isListening,
+            helpText = "Dime: \"Brazos\", \"Piernas\" o \"Cuerpo entero\""
+        )
     }
 }
 
@@ -110,7 +148,7 @@ fun BodyPartCard(
 ) {
     Card(
         modifier = modifier
-            .height(320.dp)
+            .fillMaxHeight(0.85f)
             .clickable { onClick() },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
@@ -138,4 +176,42 @@ fun BodyPartCard(
             )
         }
     }
+}
+
+fun startBodyPartVoiceFlow(
+    speechControl: SpeechControl,
+    onOptionSelected: (String) -> Unit,
+    onListeningStateChange: (Boolean) -> Unit,
+    systemControl: SystemControl,
+    hardwareControl: HardwareControl
+) {
+    speechControl.startListening(
+        onRecognized = { text ->
+            val texto = text.lowercase()
+            when {
+                "brazo" in texto || "espalda" in texto -> {
+                    onOptionSelected("ARMS_BACK")
+                    speechControl.stopListening()
+                }
+                "pierna" in texto || "pie" in texto -> {
+                    onOptionSelected("LEGS_FEET")
+                    speechControl.stopListening()
+                }
+                "cuerpo" in texto || "entero" in texto || "todo" in texto -> {
+                    onOptionSelected("FULL_BODY")
+                    speechControl.stopListening()
+                }
+            }
+        },
+        onStart = { onListeningStateChange(true) },
+        onStop = { onListeningStateChange(false) }
+    )
+
+    speechControl.wakeUp()
+    
+    // REACCIONES FÍSICAS
+    systemControl.setEmotion(EmotionsType.QUESTION)
+    hardwareControl.setEarsLED(LED.MODE_BLUE)
+    
+    speechControl.talk("¿Qué parte del cuerpo quieres mover hoy? Brazos, piernas o el cuerpo entero")
 }

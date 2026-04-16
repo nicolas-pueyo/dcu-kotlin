@@ -11,7 +11,13 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.SanbotBasicProject">
+
+        <!--Modo bloqueo de respuesta automática de voz -->
         <meta-data android:name="RECOGNIZE_MODE" android:value="1"/>
+
+        <!-- Las orejas se ponen verdes al despertar pero el robot no gira la cabeza -->
+        <meta-data android:name="FORBID_WAKE_RESPONSE" android:value="true"/>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
