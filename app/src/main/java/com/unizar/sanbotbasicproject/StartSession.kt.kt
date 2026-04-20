@@ -148,7 +148,7 @@ fun startStartSessionVoiceFlow(
     systemControl.setEmotion(EmotionsType.SMILE)
     hardwareControl.setEarsLED(LED.MODE_BLUE)
 
-    speechControl.talk("Hola, pulsa el botón o dime empezar ejercicio para comenzar")
+    speechControl.talk("Hola, pulsa el botón, tocame, tocame la cabeza o dime empezar ejercicio para comenzar")
 }
 
 fun stopStartSessionVoiceFlow(

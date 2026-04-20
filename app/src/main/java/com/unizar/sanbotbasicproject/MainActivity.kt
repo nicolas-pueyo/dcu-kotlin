@@ -9,6 +9,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -33,12 +35,13 @@ import com.unizar.sanbotbasicproject.robotControl.WheelControl
 import com.unizar.sanbotbasicproject.robotControl.HardwareControl
 import com.unizar.sanbotbasicproject.robotControl.HandsControl
 import kotlinx.coroutines.delay
+import com.sanbot.opensdk.function.unit.interfaces.hardware.TouchSensorListener
 
 class MainActivity : TopBaseActivity() {
     // Estado para controlar si el robot ha terminado de inicializarse
     private var isRobotReady by mutableStateOf(false)
     private var initErrorMessage by mutableStateOf<String?>(null)
-
+    private var onTouchAction: ((Int) -> Unit)? = null
     lateinit var headMotionManager : HeadMotionManager
     lateinit var headControl : HeadControl
     lateinit var systemControl: SystemControl
@@ -51,6 +54,8 @@ class MainActivity : TopBaseActivity() {
     lateinit var hardwareControl: HardwareControl
     lateinit var handMotionManager: WingMotionManager
     lateinit var handsControl: HandsControl
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         Log.d("MainActivity", "onCreate: Registrando actividad")
@@ -75,6 +80,21 @@ class MainActivity : TopBaseActivity() {
                         
                         composable("start_session") {
                             totalTimeSeconds = 0 // Reset
+
+                            // Implementación de evento al tocar en la pantalla start sesion
+                            // Al tocar la cabeza avanza a la siguiente pantalla(posture_screen)
+                            DisposableEffect(Unit) {
+                                onTouchAction = { part ->
+                                    if (part == 11) { // 11 es la cabeza
+                                        Log.d("SanbotTouch", "Navegando desde start_session por toque en cabeza")
+                                        navController.navigate("posture_screen")
+                                    }
+                                }
+                                onDispose {
+                                    onTouchAction = null
+                                }
+                            }
+
                             StartSession(
                                 onStartClick = { navController.navigate("posture_screen") },
                                 onVideoClick = { navController.navigate("video_test") },
@@ -88,12 +108,30 @@ class MainActivity : TopBaseActivity() {
                             PostureScreen(
                                 onOptionSelected = { posture -> 
                                     Log.d("Selection", "Selected posture: $posture")
-                                    navController.navigate("body_selection/$posture") 
+                                    navController.navigate("body_selection/$posture")
                                 },
                                 speechControl = speechControl,
                                 systemControl = systemControl,
                                 hardwareControl = hardwareControl
                             )
+
+                            // Implementación de evento al tocar en la pantalla posture_screen
+                            // Al tocar el brazo derecho haremos ejercicio de pie y con el brazo izquierdo ejercicio sentado
+                            DisposableEffect(Unit) {
+                                onTouchAction = { part ->
+                                    if (part == 9) { // 9 Brazo izquierdo
+                                        Log.d("SanbotTouch", "Navegando desde  posture_screen por toque en brazo izquierdo")
+                                        navController.navigate("body_selection/SITTING")
+                                    }else if (part == 10) { // 10 Brazo derecho
+                                        Log.d("SanbotTouch", "Navegando desde  posture_screen por toque en brazo derecho")
+                                        navController.navigate("body_selection/STANDING")
+
+                                    }
+                                }
+                                onDispose {
+                                    onTouchAction = null
+                                }
+                            }
                         }
 
                         composable(
@@ -136,6 +174,8 @@ class MainActivity : TopBaseActivity() {
                         }
 
                         composable("exercise_execution") {
+
+
                             val exercise = currentRoutine.getOrNull(currentExerciseIndex)
                             if (exercise != null) {
                                 ExerciseExecutionScreen(
@@ -155,6 +195,21 @@ class MainActivity : TopBaseActivity() {
                                     systemControl = systemControl,
                                     hardwareControl = hardwareControl
                                 )
+                            }
+                            // Estado para gestionar la parada y el inicio de la rutina desde fuera de la clase ExerciseExecutionScreen
+                            var headTouchTrigger by remember { mutableStateOf(0) }
+                            // Implementación de evento al tocar en la pantalla exercise_execution
+                            // Al tocar la cabeza para o vuelve a iniciar la rutina
+                            DisposableEffect(Unit) {
+                                onTouchAction = { part ->
+                                    if (part == 11) { // 11 es la cabeza
+                                        Log.d("SanbotTouch", "Cabeza tocada: pausa/reanudar")
+                                        headTouchTrigger++ // Al aumentar, la pantalla detecta el cambio
+                                    }
+                                }
+                                onDispose {
+                                    onTouchAction = null
+                                }
                             }
                         }
 
@@ -188,6 +243,20 @@ class MainActivity : TopBaseActivity() {
                                 systemControl = systemControl,
                                 hardwareControl = hardwareControl
                             )
+                            // Implementación de evento al tocar en la pantalla start routine_finished
+                            // Al tocar la cabeza avanza a la pantalla inicial(start_session)
+                            DisposableEffect(Unit) {
+                                onTouchAction = { part ->
+                                    if (part == 11) { // 11 es la cabeza
+                                        Log.d("SanbotTouch", "Navegando desde start_session por toque en cabeza")
+                                        navController.navigate("start_session")
+                                    }
+                                }
+                                onDispose {
+                                    onTouchAction = null
+                                }
+                            }
+
                         }
 
                         // Nueva pantalla de video accesible directamente para pruebas
@@ -252,12 +321,35 @@ class MainActivity : TopBaseActivity() {
             
             hardwareManager = getUnitManager(FuncConstant.HARDWARE_MANAGER) as HardWareManager
             hardwareControl = HardwareControl(hardwareManager)
-            
+
+            // Registramos el Listener para los eventos al tocar al robot en el cuerpo
+            hardwareManager.setOnHareWareListener(object : TouchSensorListener {
+                override fun onTouch(part: Int) {
+                    // Importante: El callback del robot viene en un hilo secundario.
+                    // Para navegar o tocar la UI de Compose, debemos ir al hilo principal.
+                    runOnUiThread {
+                        Log.d("RobotTouch", "Parte tocada: $part")
+                        onTouchAction?.invoke(part)
+                    }
+                }
+
+
+                override fun onTouch(part: Int, isTouch: Boolean) {
+                    if (isTouch) { // Solo cuando se presiona
+                        runOnUiThread {
+                            Log.d("RobotTouch", "Parte tocada: $part")
+                            onTouchAction?.invoke(part)
+                        }
+                    }
+                }
+            })
+
             handMotionManager = getUnitManager(FuncConstant.WINGMOTION_MANAGER) as WingMotionManager
             handsControl = HandsControl(handMotionManager)
             
             hardwareControl.setBrightness(2)
-            
+
+
             Log.d("MainActivity", "onMainServiceConnected: Inicialización completa")
             isRobotReady = true
         } catch (e: Exception) {

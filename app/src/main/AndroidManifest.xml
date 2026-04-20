@@ -27,6 +27,9 @@
         <!-- Feedback físico: Orejas verdes al despertar (Sección 3.11.6) -->
         <meta-data android:name="FORBID_WAKE_RESPONSE" android:value="true"/>
 
+        <!-- Bloqueo de respuesta por defecto al tacto para usarlo como botones -->
+        <meta-data android:name="FORBID_TOUCH" android:value="true"/>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

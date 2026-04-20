@@ -82,11 +82,19 @@ fun ExerciseExecutionScreen(
     onExerciseFinished: (Int) -> Unit, // pass duration spent
     onFinishRoutine: (Int) -> Unit,
     systemControl: SystemControl,
-    hardwareControl: HardwareControl
+    hardwareControl: HardwareControl,
+    externalPauseTrigger: Int = 0 // Disparador externo para pausa (ej. desde la cabeza del robot)
 ) {
     var timeLeft by remember { mutableIntStateOf(exercise.durationSeconds) }
     var isPaused by remember { mutableStateOf(false) }
     var totalSpentInThisExercise by remember { mutableIntStateOf(0) }
+
+    // Reacción al disparador externo (toque en la cabeza)
+    LaunchedEffect(externalPauseTrigger) {
+        if (externalPauseTrigger > 0) {
+            isPaused = !isPaused
+        }
+    }
 
     // Reacción física al iniciar el ejercicio o cambiar estado de pausa
     LaunchedEffect(isPaused) {
