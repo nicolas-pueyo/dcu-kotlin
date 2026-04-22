@@ -45,16 +45,18 @@ fun PostureScreen(
 
         // Gestion de speechcontrol al entrar y salir de la pantalla
         DisposableEffect(Unit) {
+            speechControl.onListeningStateChanged = { hardwareState ->
+                isListening = hardwareState
+            }
             startPostureVoiceFlow(
                 speechControl = speechControl, 
                 onOptionSelected = onOptionSelected,
-                onListeningStateChange = { isListening = it },
                 systemControl = systemControl,
                 hardwareControl = hardwareControl
             )
 
             onDispose {
-                stopPostureVoiceFlow(speechControl)
+                speechControl.onListeningStateChanged = null
             }
         }
 
@@ -95,7 +97,10 @@ fun PostureScreen(
                     icon = Icons.Default.Chair,
                     backgroundColor = Color(0xFFF7941D),
                     baseUnit = baseUnit,
-                    onClick = { onOptionSelected("SITTING") }
+                    onClick = {
+                        speechControl.stopListening()
+                        onOptionSelected("SITTING")
+                    }
                 )
 
                 PostureOptionCard(
@@ -107,7 +112,10 @@ fun PostureScreen(
                     icon = Icons.Default.Person,
                     backgroundColor = Color(0xFF56CCF2),
                     baseUnit = baseUnit,
-                    onClick = { onOptionSelected("STANDING") }
+                    onClick = {
+                        speechControl.stopListening()
+                        onOptionSelected("STANDING")
+                    }
                 )
             }
 
@@ -168,45 +176,35 @@ fun PostureOptionCard(
     }
 }
 
-
 fun startPostureVoiceFlow(
     speechControl: SpeechControl,
     onOptionSelected: (String) -> Unit,
-    onListeningStateChange: (Boolean) -> Unit,
     systemControl: SystemControl,
     hardwareControl: HardwareControl
 ) {
-    speechControl.startListening(
-        onRecognized = { text ->
-            val texto = text.lowercase()
-            when {
-                "sentado" in texto || "silla" in texto -> {
-                    onOptionSelected("SITTING")
-                    speechControl.stopListening()
-                }
-                "de pie" in texto || "pie" in texto || "levantado" in texto -> {
-                    onOptionSelected("STANDING")
-                    speechControl.stopListening()
-                }
-            }
-        },
-        onStart = { onListeningStateChange(true) },
-        onStop = { onListeningStateChange(false) }
-    )
-
-    speechControl.wakeUp()
-    
-    // Reacción física: Duda y Orejas Azules
+    // Configuración física: El robot pone cara de duda y orejas azules
     systemControl.setEmotion(EmotionsType.QUESTION)
-    hardwareControl.setLED(LED.PART_LEFT_HEAD, LED.MODE_BLUE)
-    hardwareControl.setLED(LED.PART_RIGHT_HEAD, LED.MODE_BLUE)
-    
-    speechControl.talk("¿Cómo prefieres hacer ejercicio hoy? sentado o de pie")
+    hardwareControl.setEarsLED(LED.MODE_BLUE)
+
+    // Usamos 'ask': habla y abre el micro automáticamente al terminar
+    speechControl.ask("¿Cómo prefieres hacer ejercicio hoy? ¿sentado o de pie?") { text ->
+        val texto = text.lowercase()
+        when {
+            "sentado" in texto || "silla" in texto -> {
+                speechControl.stopListening()
+                onOptionSelected("SITTING")
+            }
+            "pie" in texto || "levantado" in texto || "parado" in texto -> {
+                speechControl.stopListening()
+                onOptionSelected("STANDING")
+            }
+        }
+    }
 }
 
 fun stopPostureVoiceFlow(
     speechControl: SpeechControl
 ) {
-    speechControl.stopTalking()
-    speechControl.sleep()
+    // Método unificado que apaga voz y micrófono
+    speechControl.stopListening()
 }

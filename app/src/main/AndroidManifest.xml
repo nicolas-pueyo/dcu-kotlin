@@ -21,13 +21,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SanbotBasicProject">
 
-        <!-- Preprocesador: Modo bloqueo para capturar voz nosotros (Sección 3.11.2) -->
+        <!-- Modo de reconocimiento para que no reponda (Sección 3.11.2) -->
         <meta-data android:name="RECOGNIZE_MODE" android:value="1"/>
-
-        <!-- Feedback físico: Orejas verdes al despertar (Sección 3.11.6) -->
+        <!-- Orejas verdes al despertar y anula la respuesta física cuando se despierta (Sección 3.11.6) -->
         <meta-data android:name="FORBID_WAKE_RESPONSE" android:value="true"/>
-
-        <!-- Bloqueo de respuesta por defecto al tacto para usarlo como botones -->
+        <!-- Bloqueo de respuesta por defecto al tacto para usarlo como botones (Sección 3.11.4) -->
         <meta-data android:name="FORBID_TOUCH" android:value="true"/>
 
         <activity

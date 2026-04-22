@@ -1,7 +1,6 @@
 package com.unizar.sanbotbasicproject
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MonitorHeart
@@ -19,6 +18,7 @@ import com.unizar.sanbotbasicproject.robotControl.HardwareControl
 import com.unizar.sanbotbasicproject.robotControl.SpeechControl
 import com.unizar.sanbotbasicproject.robotControl.SystemControl
 import com.unizar.sanbotbasicproject.ui.VoiceHud
+import android.util.Log
 
 @Composable
 fun StartSession(
@@ -31,16 +31,20 @@ fun StartSession(
     var isListening by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
+
+        speechControl.onListeningStateChanged = { hardwareState ->
+            isListening = hardwareState
+        }
+
         startStartSessionVoiceFlow(
             speechControl = speechControl,
             onStartClick = onStartClick,
-            onListeningStateChange = { isListening = it },
             systemControl = systemControl,
             hardwareControl = hardwareControl
         )
 
         onDispose {
-            stopStartSessionVoiceFlow(speechControl)
+            speechControl.onListeningStateChanged = null
         }
     }
 
@@ -50,26 +54,6 @@ fun StartSession(
             .background(Color(0xFF121212))
             .padding(24.dp)
     ) {
-        // Indicador de estado superior
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .background(Color(0xFF1E1E1E), RoundedCornerShape(20.dp))
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .background(if (isListening) Color(0xFF4CAF50) else Color.Gray, CircleShape)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = if (isListening) "Robot listo" else "Cargando...",
-                color = Color.White,
-                style = MaterialTheme.typography.labelLarge
-            )
-        }
 
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -77,7 +61,10 @@ fun StartSession(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Button(
-                onClick = onStartClick,
+                onClick = {
+                    speechControl.stopListening()
+                    onStartClick()
+                },
                 modifier = Modifier.size(width = 560.dp, height = 300.dp),
                 shape = RoundedCornerShape(32.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0056D2)),
@@ -126,34 +113,32 @@ fun StartSession(
 fun startStartSessionVoiceFlow(
     speechControl: SpeechControl,
     onStartClick: () -> Unit,
-    onListeningStateChange: (Boolean) -> Unit,
     systemControl: SystemControl,
     hardwareControl: HardwareControl
 ) {
-    speechControl.startListening(
-        onRecognized = { text ->
-            val texto = text.lowercase()
-            if ("empezar" in texto || "ejercicio" in texto || "comenzar" in texto) {
-                onStartClick()
-                speechControl.stopListening()
-            }
-        },
-        onStart = { onListeningStateChange(true) },
-        onStop = { onListeningStateChange(false) }
-    )
-
-    speechControl.wakeUp()
-
     // REACCIÓN: Sonrisa y orejas azules (fijo)
     systemControl.setEmotion(EmotionsType.SMILE)
     hardwareControl.setEarsLED(LED.MODE_BLUE)
 
-    speechControl.talk("Hola, pulsa el botón, tocame, tocame la cabeza o dime empezar ejercicio para comenzar")
+    // FLUJO NUEVO: Usamos el método `ask` de nuestro SpeechControl.
+    // El robot hablará y, automáticamente, abrirá el micro al terminar.
+    speechControl.ask("Hola, pulsa el botón, tócame la cabeza o dime empezar ejercicio para comenzar") { text ->
+        val textoLimpio = text.lowercase()
+        Log.d("Speech Control", "Texto limpio: $textoLimpio")
+        // Si detecta la palabra clave, avanza a la siguiente pantalla
+        if ("empezar" in textoLimpio || "ejercicio" in textoLimpio || "comenzar" in textoLimpio) {
+            speechControl.stopListening() // Paramos el micro por seguridad
+            onStartClick()
+        }
+//        else {
+//            // (Opcional) Si dice otra cosa, podemos hacer que el robot avise de que no lo ha entendido
+//            speechControl.talk("No te he entendido bien. Por favor, dime empezar ejercicio.")
+//        }
+    }
 }
 
 fun stopStartSessionVoiceFlow(
     speechControl: SpeechControl
 ) {
-    speechControl.stopTalking()
-    speechControl.sleep()
+    speechControl.stopListening() // Usamos nuestro método limpio de parada
 }

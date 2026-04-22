@@ -38,16 +38,17 @@ fun BodyPartSelectionScreen(
 
     // Reacción física al entrar en la pantalla
     DisposableEffect(Unit) {
+        speechControl.onListeningStateChanged = { hardwareState ->
+            isListening = hardwareState
+        }
         startBodyPartVoiceFlow(
             speechControl = speechControl,
             onOptionSelected = onOptionSelected,
-            onListeningStateChange = { isListening = it },
             systemControl = systemControl,
             hardwareControl = hardwareControl
         )
         onDispose {
-            speechControl.stopTalking()
-            speechControl.sleep()
+            speechControl.onListeningStateChanged = null
         }
     }
 
@@ -110,21 +111,30 @@ fun BodyPartSelectionScreen(
                 title = "Brazos y Espalda",
                 icon = Icons.Default.ArrowUpward,
                 backgroundColor = Color(0xFFA8E6E2),
-                onClick = { onOptionSelected("ARMS_BACK") }
+                onClick = {
+                    speechControl.stopListening()
+                    onOptionSelected("ARMS_BACK")
+                }
             )
             BodyPartCard(
                 modifier = Modifier.weight(1f),
                 title = "Piernas y Pies",
                 icon = Icons.Default.DirectionsWalk,
                 backgroundColor = Color(0xFFF5C2E0),
-                onClick = { onOptionSelected("LEGS_FEET") }
+                onClick = {
+                    speechControl.stopListening()
+                    onOptionSelected("LEGS_FEET")
+                }
             )
             BodyPartCard(
                 modifier = Modifier.weight(1f),
                 title = "Cuerpo (Entero)",
                 icon = Icons.Default.Person,
                 backgroundColor = Color(0xFFD1B3FF),
-                onClick = { onOptionSelected("FULL_BODY") }
+                onClick = {
+                    speechControl.stopListening()
+                    onOptionSelected("FULL_BODY")
+                }
             )
         }
 
@@ -181,37 +191,38 @@ fun BodyPartCard(
 fun startBodyPartVoiceFlow(
     speechControl: SpeechControl,
     onOptionSelected: (String) -> Unit,
-    onListeningStateChange: (Boolean) -> Unit,
     systemControl: SystemControl,
     hardwareControl: HardwareControl
 ) {
-    speechControl.startListening(
-        onRecognized = { text ->
-            val texto = text.lowercase()
-            when {
-                "brazo" in texto || "espalda" in texto -> {
-                    onOptionSelected("ARMS_BACK")
-                    speechControl.stopListening()
-                }
-                "pierna" in texto || "pie" in texto -> {
-                    onOptionSelected("LEGS_FEET")
-                    speechControl.stopListening()
-                }
-                "cuerpo" in texto || "entero" in texto || "todo" in texto -> {
-                    onOptionSelected("FULL_BODY")
-                    speechControl.stopListening()
-                }
-            }
-        },
-        onStart = { onListeningStateChange(true) },
-        onStop = { onListeningStateChange(false) }
-    )
 
-    speechControl.wakeUp()
-    
-    // REACCIONES FÍSICAS
+    // Reacción física del robot
     systemControl.setEmotion(EmotionsType.QUESTION)
     hardwareControl.setEarsLED(LED.MODE_BLUE)
-    
-    speechControl.talk("¿Qué parte del cuerpo quieres mover hoy? Brazos, piernas o el cuerpo entero")
+
+    // El robot pregunta y abre el micro solo cuando termina de hablar
+    speechControl.ask("¿Qué parte del cuerpo quieres mover hoy? Brazos, piernas o el cuerpo entero") { text ->
+        val texto = text.lowercase()
+        when {
+            "brazo" in texto || "espalda" in texto || "arriba" in texto -> {
+                speechControl.stopListening()
+                onOptionSelected("ARMS_BACK")
+            }
+
+            "pierna" in texto || "pie" in texto || "abajo" in texto -> {
+                speechControl.stopListening()
+                onOptionSelected("LEGS_FEET")
+            }
+
+            "cuerpo" in texto || "entero" in texto || "todo" in texto -> {
+                speechControl.stopListening()
+                onOptionSelected("FULL_BODY")
+            }
+        }
+    }
+}
+fun stopBodyPartVoiceFlow(
+    speechControl: SpeechControl
+) {
+    // Usamos el método unificado que ya detiene voz y micro
+    speechControl.stopListening()
 }

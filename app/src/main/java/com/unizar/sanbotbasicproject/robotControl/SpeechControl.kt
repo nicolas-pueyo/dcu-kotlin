@@ -1,7 +1,8 @@
 package com.unizar.sanbotbasicproject.robotControl
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
-import com.sanbot.opensdk.beans.OperationResult
 import com.sanbot.opensdk.function.beans.SpeakOption
 import com.sanbot.opensdk.function.beans.speech.Grammar
 import com.sanbot.opensdk.function.beans.speech.RecognizeTextBean
@@ -9,115 +10,89 @@ import com.sanbot.opensdk.function.beans.speech.SpeakStatus
 import com.sanbot.opensdk.function.unit.SpeechManager
 import com.sanbot.opensdk.function.unit.interfaces.speech.RecognizeListener
 import com.sanbot.opensdk.function.unit.interfaces.speech.SpeakListener
+import com.sanbot.opensdk.function.unit.interfaces.speech.WakenListener
 
 class SpeechControl(val speechManager: SpeechManager?) {
-    private var lastTextToSpeak: String = ""
-    private var isListeningEnabled = false
-    private var isCurrentlySpeaking = false
 
-    val isRobotTalking: Boolean
-        get() = isCurrentlySpeaking || (speechManager?.isSpeaking?.result == "1")
+    private var isWaitingForResponse = false
+    var onListeningStateChanged: ((Boolean) -> Unit)? = null
+    private var onTextRecognized: ((String) -> Unit)? = null
 
-    private val unifiedSpeechListener = object : RecognizeListener, SpeakListener {
-        override fun onSpeakStatus(speakStatus: SpeakStatus) {
-            if (speakStatus.progress >= 100f) {
-                isCurrentlySpeaking = false
-                if (isListeningEnabled) {
-                    speechManager?.doWakeUp()
-                }
-            } else {
-                isCurrentlySpeaking = true
-            }
-        }
-
-        override fun onError(engine: Int, errorCode: Int) {
-            if (isListeningEnabled && errorCode == 20005 && !isCurrentlySpeaking) {
-                if (lastTextToSpeak.isNotEmpty()) {
-                    talk(lastTextToSpeak)
-                } else {
-                    speechManager?.doWakeUp()
-                }
-            }
-        }
-
-        override fun onRecognizeResult(grammar: Grammar): Boolean {
-            val text = grammar.text?.trim().orEmpty()
-            if (text.isNotEmpty()) {
-                externalRecognizedCallback?.invoke(text)
-            }
-            return true
-        }
-
-        override fun onRecognizeText(recognizeText: RecognizeTextBean) {
-            val text = recognizeText.text?.trim().orEmpty()
-            if (text.isNotEmpty()) {
-                externalRecognizedCallback?.invoke(text)
-            }
-        }
-
-        override fun onRecognizeVolume(volume: Int) {}
-        override fun onStartRecognize() {}
-        override fun onStopRecognize() {}
-    }
-
-    private var externalRecognizedCallback: ((String) -> Unit)? = null
+    // El Handler que usa Igor para gestionar los tiempos de respuesta
+    private val speechHandler = Handler(Looper.getMainLooper())
 
     init {
-        speechManager?.setOnSpeechListener(unifiedSpeechListener)
+        setupListenersLike()
     }
 
-    fun talk(answer: String) {
-        if (answer.isEmpty() || speechManager == null) return
-        lastTextToSpeak = answer
-        isCurrentlySpeaking = true
-        speechManager.startSpeak(answer, speakOption)
+    private fun setupListenersLike() {
+        if (speechManager == null) return
+
+        // 1. Listener de Habla
+        speechManager.setOnSpeechListener(object : SpeakListener {
+            override fun onSpeakStatus(speakStatus: SpeakStatus) {
+                if (speakStatus.progress >= 100f) {
+                    Log.d("SpeechControl", "Robot terminó de hablar")
+                    if (isWaitingForResponse) {
+                        // Forzamos el despertado con un pequeño delay como hace Igor
+                        speechHandler.postDelayed({
+                            speechManager.doWakeUp()
+                        }, 200)
+                    }
+                }
+            }
+        })
+
+        // 2. Listener de Reconocimiento
+        speechManager.setOnSpeechListener(object : RecognizeListener {
+            override fun onRecognizeText(recognizeText: RecognizeTextBean) {}
+
+            override fun onRecognizeResult(grammar: Grammar): Boolean {
+                val text = grammar.text?.trim().orEmpty()
+                if (text.isNotEmpty() && isWaitingForResponse) {
+                    Log.i("SpeechControl", "Reconocido: $text")
+                    isWaitingForResponse = false
+                    onTextRecognized?.invoke(text)
+                }
+                return true // Esto evita que el robot responda por su cuenta
+            }
+
+            override fun onRecognizeVolume(volume: Int) {}
+            override fun onStartRecognize() {}
+            override fun onStopRecognize() {}
+            override fun onError(engine: Int, errorCode: Int) {
+                Log.e("SpeechControl", "Error: $errorCode")
+            }
+        })
+
+        // 3. Listener de Hardware (Despertar/Dormir)
+        speechManager.setOnSpeechListener(object : WakenListener {
+            override fun onWakeUpStatus(b: Boolean) {}
+            override fun onWakeUp() {
+                Log.d("SpeechControl", "Micro Abierto")
+                onListeningStateChanged?.invoke(true)
+            }
+            override fun onSleep() {
+                Log.d("SpeechControl", "Micro Cerrado")
+                onListeningStateChanged?.invoke(false)
+            }
+        })
     }
 
-    fun talk(answer: String, speed: Int) {
-        if (answer.isEmpty() || speechManager == null) return
-        lastTextToSpeak = answer
-        speakOption.speed = speed
-        isCurrentlySpeaking = true
-        speechManager.startSpeak(answer, speakOption)
-    }
+    fun ask(question: String, onResponse: (String) -> Unit) {
+        if (speechManager == null) return
 
-    fun stopTalking() {
-        speechManager?.stopSpeak()
-        isCurrentlySpeaking = false
-    }
+        isWaitingForResponse = true
+        onTextRecognized = onResponse
 
-    fun wakeUp() {
-        speechManager?.doWakeUp()
-    }
-
-    fun sleep() {
-        speechManager?.doSleep()
-    }
-
-    fun startListening(
-        onRecognized: (String) -> Unit,
-        onError: ((Int, Int) -> Unit)? = null,
-        onStart: (() -> Unit)? = null,
-        onStop: (() -> Unit)? = null,
-        blockRobotResponse: Boolean = true
-    ) {
-        isListeningEnabled = true
-        externalRecognizedCallback = onRecognized
-        if (!isCurrentlySpeaking) {
-            speechManager?.doWakeUp()
-        }
+        // Hablamos
+        speechManager.startSpeak(question, SpeakOption().apply { speed = 50; intonation = 50 })
     }
 
     fun stopListening() {
-        isListeningEnabled = false
-        externalRecognizedCallback = null
+        isWaitingForResponse = false
         speechManager?.doSleep()
-    }
-
-    companion object {
-        private val speakOption: SpeakOption = SpeakOption().apply {
-            speed = 50
-            intonation = 50
-        }
+        speechManager?.stopSpeak()
+        speechHandler.removeCallbacksAndMessages(null)
     }
 }
