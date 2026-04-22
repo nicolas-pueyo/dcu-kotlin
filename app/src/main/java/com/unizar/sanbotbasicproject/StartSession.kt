@@ -116,11 +116,11 @@ fun startStartSessionVoiceFlow(
     systemControl: SystemControl,
     hardwareControl: HardwareControl
 ) {
-    // REACCIÓN: Sonrisa y orejas azules (fijo)
+    // Sonrisa y orejas azules (fijo)
     systemControl.setEmotion(EmotionsType.SMILE)
     hardwareControl.setEarsLED(LED.MODE_BLUE)
 
-    // FLUJO NUEVO: Usamos el método `ask` de nuestro SpeechControl.
+    // Usamos el método ask de nuestro SpeechControl.
     // El robot hablará y, automáticamente, abrirá el micro al terminar.
     speechControl.ask("Hola, pulsa el botón, tócame la cabeza o dime empezar ejercicio para comenzar") { text ->
         val textoLimpio = text.lowercase()
@@ -130,10 +130,6 @@ fun startStartSessionVoiceFlow(
             speechControl.stopListening() // Paramos el micro por seguridad
             onStartClick()
         }
-//        else {
-//            // (Opcional) Si dice otra cosa, podemos hacer que el robot avise de que no lo ha entendido
-//            speechControl.talk("No te he entendido bien. Por favor, dime empezar ejercicio.")
-//        }
     }
 }
 

@@ -182,11 +182,11 @@ fun startPostureVoiceFlow(
     systemControl: SystemControl,
     hardwareControl: HardwareControl
 ) {
-    // Configuración física: El robot pone cara de duda y orejas azules
+    // El robot pone cara de duda y orejas azules
     systemControl.setEmotion(EmotionsType.QUESTION)
     hardwareControl.setEarsLED(LED.MODE_BLUE)
 
-    // Usamos 'ask': habla y abre el micro automáticamente al terminar
+    // Habla y abre el micro automáticamente al terminar
     speechControl.ask("¿Cómo prefieres hacer ejercicio hoy? ¿sentado o de pie?") { text ->
         val texto = text.lowercase()
         when {

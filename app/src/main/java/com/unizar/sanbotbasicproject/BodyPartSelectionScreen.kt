@@ -195,7 +195,7 @@ fun startBodyPartVoiceFlow(
     hardwareControl: HardwareControl
 ) {
 
-    // Reacción física del robot
+    // El robot pone cara de duda y orejas azules
     systemControl.setEmotion(EmotionsType.QUESTION)
     hardwareControl.setEarsLED(LED.MODE_BLUE)
 

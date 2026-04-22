@@ -18,17 +18,17 @@ class SpeechControl(val speechManager: SpeechManager?) {
     var onListeningStateChanged: ((Boolean) -> Unit)? = null
     private var onTextRecognized: ((String) -> Unit)? = null
 
-    // El Handler que usa Igor para gestionar los tiempos de respuesta
+    // El Handler para gestionar los tiempos de respuesta
     private val speechHandler = Handler(Looper.getMainLooper())
 
     init {
-        setupListenersLike()
+        setupListeners()
     }
 
-    private fun setupListenersLike() {
+    private fun setupListeners() {
         if (speechManager == null) return
 
-        // 1. Listener de Habla
+        // Listener de habla
         speechManager.setOnSpeechListener(object : SpeakListener {
             override fun onSpeakStatus(speakStatus: SpeakStatus) {
                 if (speakStatus.progress >= 100f) {
@@ -43,7 +43,7 @@ class SpeechControl(val speechManager: SpeechManager?) {
             }
         })
 
-        // 2. Listener de Reconocimiento
+        // Listener de reconocimiento
         speechManager.setOnSpeechListener(object : RecognizeListener {
             override fun onRecognizeText(recognizeText: RecognizeTextBean) {}
 
@@ -54,7 +54,8 @@ class SpeechControl(val speechManager: SpeechManager?) {
                     isWaitingForResponse = false
                     onTextRecognized?.invoke(text)
                 }
-                return true // Esto evita que el robot responda por su cuenta
+                // Quizás sobra el return por el manifest, lo dejo porqe funciona
+                return true
             }
 
             override fun onRecognizeVolume(volume: Int) {}
@@ -65,7 +66,7 @@ class SpeechControl(val speechManager: SpeechManager?) {
             }
         })
 
-        // 3. Listener de Hardware (Despertar/Dormir)
+        // Listener del estado del micrófono
         speechManager.setOnSpeechListener(object : WakenListener {
             override fun onWakeUpStatus(b: Boolean) {}
             override fun onWakeUp() {
