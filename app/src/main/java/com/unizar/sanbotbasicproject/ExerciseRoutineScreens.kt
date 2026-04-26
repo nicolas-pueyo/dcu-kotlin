@@ -24,6 +24,7 @@ import com.sanbot.opensdk.function.beans.EmotionsType
 import com.sanbot.opensdk.function.beans.LED
 import com.unizar.sanbotbasicproject.robotControl.HardwareControl
 import com.unizar.sanbotbasicproject.robotControl.SystemControl
+import com.unizar.sanbotbasicproject.robotControl.ProjectorControl
 import kotlinx.coroutines.delay
 import java.util.Locale
 
@@ -305,11 +306,14 @@ fun RoutineFinishedScreen(
     completed: Boolean,
     onBackToStart: () -> Unit,
     systemControl: SystemControl,
-    hardwareControl: HardwareControl
+    hardwareControl: HardwareControl,
+    projectorControl: ProjectorControl
 ) {
     DisposableEffect(Unit) {
         systemControl.setEmotion(EmotionsType.LAUGHTER)
         hardwareControl.setEarsLED(LED.MODE_FLICKER_RANDOM, 3, 5)
+        // Apagamos el láser con seguridad al terminar
+        projectorControl.switchProjector(false)
         onDispose { }
     }
 

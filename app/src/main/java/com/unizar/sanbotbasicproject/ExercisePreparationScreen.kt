@@ -18,6 +18,7 @@ import com.sanbot.opensdk.function.beans.EmotionsType
 import com.sanbot.opensdk.function.beans.LED
 import com.unizar.sanbotbasicproject.robotControl.HardwareControl
 import com.unizar.sanbotbasicproject.robotControl.SystemControl
+import com.unizar.sanbotbasicproject.robotControl.ProjectorControl
 import kotlinx.coroutines.delay
 
 @Composable
@@ -26,9 +27,10 @@ fun ExercisePreparationScreen(
     bodyPart: String,
     onCountdownFinished: () -> Unit,
     systemControl: SystemControl,
-    hardwareControl: HardwareControl
+    hardwareControl: HardwareControl,
+    projectorControl: ProjectorControl
 ) {
-    var timeLeft by remember { mutableIntStateOf(10) }
+    var timeLeft by remember { mutableIntStateOf(12) }
 
     // Nombre del ejercicio basado en la parte del cuerpo
     val exerciseName = when (bodyPart) {
@@ -48,11 +50,16 @@ fun ExercisePreparationScreen(
     // Reacción física inicial al entrar en la pantalla
     DisposableEffect(Unit) {
         systemControl.setEmotion(EmotionsType.SURPRISE)
-        // Parpadeo lento (10 = 1000ms = 1 segundo de intervalo)
         hardwareControl.setEarsLED(LED.MODE_FLICKER_BLUE, 10, 0)
 
+        // Configuramos el proyector a la pared
+        projectorControl.expectedSetup()
+        // Encendemos el láser
+        projectorControl.switchProjector(true)
+
         onDispose {
-            // Limpieza opcional al salir
+            // No lo apagamos aquí, porque queremos que siga encendido
+            // al pasar a la pantalla de ejecución.
         }
     }
 
@@ -121,6 +128,7 @@ fun ExercisePreparationScreen(
 
             Spacer(modifier = Modifier.height(60.dp))
 
+            // Botón Saltar
             // Botón Saltar
             Button(
                 onClick = onCountdownFinished,

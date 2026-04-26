@@ -32,7 +32,8 @@ import com.unizar.sanbotbasicproject.robotControl.SpeechControl
 import com.unizar.sanbotbasicproject.robotControl.WheelControl
 import com.unizar.sanbotbasicproject.robotControl.HardwareControl
 import com.unizar.sanbotbasicproject.robotControl.HandsControl
-import kotlinx.coroutines.delay
+import com.sanbot.opensdk.function.unit.ProjectorManager
+import com.unizar.sanbotbasicproject.robotControl.ProjectorControl
 import com.sanbot.opensdk.function.unit.interfaces.hardware.TouchSensorListener
 
 class MainActivity : TopBaseActivity() {
@@ -51,8 +52,11 @@ class MainActivity : TopBaseActivity() {
     lateinit var hardwareControl: HardwareControl
     lateinit var handMotionManager: WingMotionManager
     lateinit var handsControl: HandsControl
+    lateinit var projectorManager: ProjectorManager
+    lateinit var projectorControl: ProjectorControl
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        Log.d("MainActivity", "onCreate: Registrando actividad")
         register(MainActivity::class.java)
         window.setFlags(
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
@@ -76,6 +80,7 @@ class MainActivity : TopBaseActivity() {
                             DisposableEffect(Unit) {
                                 onTouchAction = { part ->
                                     if (part == 11) {
+                                        Log.d("SanbotTouch", "Navegando desde start_session por toque en cabeza")
                                         navController.navigate("posture_screen")
                                     }
                                 }
@@ -94,6 +99,7 @@ class MainActivity : TopBaseActivity() {
                         composable("posture_screen") {
                             PostureScreen(
                                 onOptionSelected = { posture -> 
+                                    Log.d("Selection", "Selected posture: $posture")
                                     navController.navigate("body_selection/$posture")
                                 },
                                 speechControl = speechControl,
@@ -104,8 +110,10 @@ class MainActivity : TopBaseActivity() {
                             DisposableEffect(Unit) {
                                 onTouchAction = { part ->
                                     if (part == 9) {
+                                        Log.d("SanbotTouch", "Navegando desde posture_screen por toque en brazo izquierdo")
                                         navController.navigate("body_selection/SITTING")
                                     } else if (part == 10) {
+                                        Log.d("SanbotTouch", "Navegando desde posture_screen por toque en brazo derecho")
                                         navController.navigate("body_selection/STANDING")
                                     }
                                 }
@@ -147,7 +155,8 @@ class MainActivity : TopBaseActivity() {
                                         navController.navigate("exercise_execution")
                                     },
                                     systemControl = systemControl,
-                                    hardwareControl = hardwareControl
+                                    hardwareControl = hardwareControl,
+                                    projectorControl = projectorControl
                                 )
                             }
                         }
@@ -159,6 +168,7 @@ class MainActivity : TopBaseActivity() {
                             DisposableEffect(Unit) {
                                 onTouchAction = { part ->
                                     if (part == 11) {
+                                        Log.d("SanbotTouch", "Cabeza tocada: pausa/reanudar")
                                         headTouchTrigger++
                                     }
                                 }
@@ -215,12 +225,14 @@ class MainActivity : TopBaseActivity() {
                                     }
                                 },
                                 systemControl = systemControl,
-                                hardwareControl = hardwareControl
+                                hardwareControl = hardwareControl,
+                                projectorControl = projectorControl
                             )
 
                             DisposableEffect(Unit) {
                                 onTouchAction = { part ->
                                     if (part == 11) {
+                                        Log.d("SanbotTouch", "Navegando desde routine_finished por toque en cabeza")
                                         navController.navigate("start_session") {
                                             popUpTo("start_session") { inclusive = true }
                                         }
@@ -241,7 +253,17 @@ class MainActivity : TopBaseActivity() {
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(text = "Conectando con el robot...")
                             initErrorMessage?.let {
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(text = it, color = androidx.compose.ui.graphics.Color.Red)
+                            }
+                            
+                            Spacer(modifier = Modifier.height(24.dp))
+                            // Botón para pasar a la pantalla directamente sin esperar conexión
+                            Button(onClick = { 
+                                Log.w("MainActivity", "Inicio FORZADO por el usuario")
+                                forceInit() 
+                            }) {
+                                Text(text = "Entrar a la aplicación")
                             }
                         }
                     }
@@ -251,6 +273,7 @@ class MainActivity : TopBaseActivity() {
     }
 
     override fun onMainServiceConnected() {
+        Log.d("MainActivity", "onMainServiceConnected: RECIBIDO")
         try {
             headMotionManager = getUnitManager(FuncConstant.HEADMOTION_MANAGER) as HeadMotionManager
             headControl = HeadControl(headMotionManager)
@@ -262,21 +285,65 @@ class MainActivity : TopBaseActivity() {
             wheelControl = WheelControl(wheelManager)
             hardwareManager = getUnitManager(FuncConstant.HARDWARE_MANAGER) as HardWareManager
             hardwareControl = HardwareControl(hardwareManager)
+            projectorManager = getUnitManager(FuncConstant.PROJECTOR_MANAGER) as ProjectorManager
+            projectorControl = ProjectorControl(projectorManager)
 
             hardwareManager.setOnHareWareListener(object : TouchSensorListener {
                 override fun onTouch(part: Int) {
-                    runOnUiThread { onTouchAction?.invoke(part) }
+                    runOnUiThread { 
+                        Log.d("RobotTouch", "Parte tocada: $part")
+                        onTouchAction?.invoke(part) 
+                    }
                 }
                 override fun onTouch(part: Int, isTouch: Boolean) {
-                    if (isTouch) { runOnUiThread { onTouchAction?.invoke(part) } }
+                    if (isTouch) { 
+                        runOnUiThread { 
+                            Log.d("RobotTouch", "Parte tocada: $part")
+                            onTouchAction?.invoke(part) 
+                        } 
+                    }
                 }
             })
 
             handMotionManager = getUnitManager(FuncConstant.WINGMOTION_MANAGER) as WingMotionManager
             handsControl = HandsControl(handMotionManager)
+            
+            Log.d("MainActivity", "onMainServiceConnected: Inicialización completa")
             isRobotReady = true
         } catch (e: Exception) {
+            Log.e("MainActivity", "Error inicializando los controles del robot", e)
             initErrorMessage = e.message
+        }
+    }
+
+    private fun forceInit() {
+        try {
+            Log.w("MainActivity", "Ejecutando forceInit para evitar crashes de lateinit")
+            // Inicializamos con nulls para que la app no pete al usar las variables lateinit
+            speechControl = SpeechControl(null)
+            projectorControl = ProjectorControl(getUnitManager(FuncConstant.PROJECTOR_MANAGER) as ProjectorManager)
+            try {
+                // Intentamos capturar los managers por si alguno sí está disponible
+                if (!::headMotionManager.isInitialized) {
+                    headMotionManager = getUnitManager(FuncConstant.HEADMOTION_MANAGER) as HeadMotionManager
+                    headControl = HeadControl(headMotionManager)
+                }
+                if (!::systemManager.isInitialized) {
+                    systemManager = getUnitManager(FuncConstant.SYSTEM_MANAGER) as SystemManager
+                    systemControl = SystemControl(systemManager)
+                }
+                if (!::hardwareManager.isInitialized) {
+                    hardwareManager = getUnitManager(FuncConstant.HARDWARE_MANAGER) as HardWareManager
+                    hardwareControl = HardwareControl(hardwareManager)
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "No se pudieron inicializar todos los Managers en forceInit", e)
+            }
+            
+            isRobotReady = true
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error crítico en forceInit", e)
+            initErrorMessage = "Error al forzar: ${e.message}"
         }
     }
 }
