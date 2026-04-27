@@ -1,6 +1,8 @@
 package com.unizar.sanbotbasicproject
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.WindowManager
 import androidx.activity.compose.setContent
@@ -19,6 +21,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.sanbot.opensdk.base.TopBaseActivity
 import com.sanbot.opensdk.beans.FuncConstant
+import com.sanbot.opensdk.beans.OperationResult
 import com.sanbot.opensdk.function.unit.HeadMotionManager
 import com.sanbot.opensdk.function.unit.SystemManager
 import com.sanbot.opensdk.function.unit.SpeechManager
@@ -77,15 +80,6 @@ class MainActivity : TopBaseActivity() {
                         
                         composable("start_session") {
                             totalTimeSeconds = 0
-                            DisposableEffect(Unit) {
-                                onTouchAction = { part ->
-                                    if (part == 11) {
-                                        Log.d("SanbotTouch", "Navegando desde start_session por toque en cabeza")
-                                        navController.navigate("posture_screen")
-                                    }
-                                }
-                                onDispose { onTouchAction = null }
-                            }
 
                             StartSession(
                                 onStartClick = { navController.navigate("posture_screen") },
@@ -97,6 +91,7 @@ class MainActivity : TopBaseActivity() {
                         }
 
                         composable("posture_screen") {
+
                             PostureScreen(
                                 onOptionSelected = { posture -> 
                                     Log.d("Selection", "Selected posture: $posture")
@@ -107,18 +102,7 @@ class MainActivity : TopBaseActivity() {
                                 hardwareControl = hardwareControl
                             )
 
-                            DisposableEffect(Unit) {
-                                onTouchAction = { part ->
-                                    if (part == 9) {
-                                        Log.d("SanbotTouch", "Navegando desde posture_screen por toque en brazo izquierdo")
-                                        navController.navigate("body_selection/SITTING")
-                                    } else if (part == 10) {
-                                        Log.d("SanbotTouch", "Navegando desde posture_screen por toque en brazo derecho")
-                                        navController.navigate("body_selection/STANDING")
-                                    }
-                                }
-                                onDispose { onTouchAction = null }
-                            }
+
                         }
 
                         composable(
@@ -164,16 +148,6 @@ class MainActivity : TopBaseActivity() {
                         composable("exercise_execution") {
                             val exercise = currentRoutine.getOrNull(currentExerciseIndex)
                             var headTouchTrigger by remember { mutableIntStateOf(0) }
-
-                            DisposableEffect(Unit) {
-                                onTouchAction = { part ->
-                                    if (part == 11) {
-                                        Log.d("SanbotTouch", "Cabeza tocada: pausa/reanudar")
-                                        headTouchTrigger++
-                                    }
-                                }
-                                onDispose { onTouchAction = null }
-                            }
 
                             if (exercise != null) {
                                 ExerciseExecutionScreen(
@@ -229,17 +203,6 @@ class MainActivity : TopBaseActivity() {
                                 projectorControl = projectorControl
                             )
 
-                            DisposableEffect(Unit) {
-                                onTouchAction = { part ->
-                                    if (part == 11) {
-                                        Log.d("SanbotTouch", "Navegando desde routine_finished por toque en cabeza")
-                                        navController.navigate("start_session") {
-                                            popUpTo("start_session") { inclusive = true }
-                                        }
-                                    }
-                                }
-                                onDispose { onTouchAction = null }
-                            }
                         }
 
                         composable("video_test") {
@@ -290,17 +253,22 @@ class MainActivity : TopBaseActivity() {
 
             hardwareManager.setOnHareWareListener(object : TouchSensorListener {
                 override fun onTouch(part: Int) {
-                    runOnUiThread { 
-                        Log.d("RobotTouch", "Parte tocada: $part")
-                        onTouchAction?.invoke(part) 
-                    }
+                    // Ignoramos esta versión para evitar duplicados
                 }
                 override fun onTouch(part: Int, isTouch: Boolean) {
-                    if (isTouch) { 
-                        runOnUiThread { 
+                    //Al tocar la cabeza el micro se iniciara
+                    if (isTouch) {
+                        runOnUiThread {
                             Log.d("RobotTouch", "Parte tocada: $part")
-                            onTouchAction?.invoke(part) 
-                        } 
+                            if (part == 11 || part == 12 || part == 13) {
+                                Log.i("RobotTouch", "Cabeza tocada (11): Activando micro")
+
+                                speechControl.interruptAndListen()
+                            } else {
+                                Log.d("RobotTouch", "Parte no permitida: $part")
+                            }
+
+                        }
                     }
                 }
             })

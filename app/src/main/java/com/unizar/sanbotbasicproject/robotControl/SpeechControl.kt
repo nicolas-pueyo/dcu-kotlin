@@ -25,23 +25,24 @@ class SpeechControl(val speechManager: SpeechManager?) {
         setupListeners()
     }
 
+
     private fun setupListeners() {
         if (speechManager == null) return
 
-        // Listener de habla
-        speechManager.setOnSpeechListener(object : SpeakListener {
-            override fun onSpeakStatus(speakStatus: SpeakStatus) {
-                if (speakStatus.progress >= 100f) {
-                    Log.d("SpeechControl", "Robot terminó de hablar")
-                    if (isWaitingForResponse) {
-                        // Forzamos el despertado con un pequeño delay como hace Igor
-                        speechHandler.postDelayed({
-                            speechManager.doWakeUp()
-                        }, 200)
-                    }
-                }
-            }
-        })
+        // Listener de habla ya no usado por la funcionalidad de darle en la cabeza
+//        speechManager.setOnSpeechListener(object : SpeakListener {
+//            override fun onSpeakStatus(speakStatus: SpeakStatus) {
+//                if (speakStatus.progress >= 100f) {
+//                    Log.d("SpeechControl", "Robot terminó de hablar")
+//                    if (isWaitingForResponse) {
+//                        // Forzamos el despertado con un pequeño delay como hace Igor
+//                        speechHandler.postDelayed({
+//                            speechManager.doWakeUp()
+//                        }, 200)
+//                    }
+//                }
+//            }
+//        })
 
         // Listener de reconocimiento
         speechManager.setOnSpeechListener(object : RecognizeListener {
@@ -78,6 +79,19 @@ class SpeechControl(val speechManager: SpeechManager?) {
                 onListeningStateChanged?.invoke(false)
             }
         })
+    }
+
+    /**
+     * Detiene el habla actual y abre el micrófono inmediatamente.
+     */
+    fun interruptAndListen() {
+        Log.d("SpeechControl", "Interrumpiendo habla y abriendo micro")
+        isWaitingForResponse = true
+        speechManager?.stopSpeak() // Detiene el habla si la hay
+        // Damos un pequeño margen para que el motor de voz se detenga antes de abrir micro
+        speechHandler.postDelayed({
+            speechManager?.doWakeUp()
+        }, 300)
     }
 
     fun ask(question: String, onResponse: (String) -> Unit) {
