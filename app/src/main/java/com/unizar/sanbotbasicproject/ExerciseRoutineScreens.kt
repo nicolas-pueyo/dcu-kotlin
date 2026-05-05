@@ -1,7 +1,15 @@
 package com.unizar.sanbotbasicproject
 
-import android.net.Uri
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.AnimatedVisibility
+import androidx.core.net.toUri
 import android.widget.VideoView
+import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -12,9 +20,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -23,11 +36,48 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.sanbot.opensdk.function.beans.EmotionsType
 import com.sanbot.opensdk.function.beans.LED
 import com.unizar.sanbotbasicproject.robotControl.HardwareControl
-import com.unizar.sanbotbasicproject.robotControl.SystemControl
 import com.unizar.sanbotbasicproject.robotControl.ProjectorControl
+import com.unizar.sanbotbasicproject.robotControl.SystemControl
 import kotlinx.coroutines.delay
 import java.util.Locale
+import kotlin.random.Random
 
+// ---------------------------------------------------
+// Tema oscuro personalizado
+// ---------------------------------------------------
+val FitnessColorScheme = darkColorScheme(
+    primary = Color(0xFF38BDF8),
+    secondary = Color(0xFF4ADE80),
+    background = Color(0xFF0B1120),
+    surface = Color(0xFF1E293B),
+    surfaceVariant = Color(0xFF334155),
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onBackground = Color(0xFFF8FAFC),
+    onSurface = Color(0xFFF1F5F9),
+    outline = Color(0xFF475569)
+)
+
+val FitnessShapes = Shapes(
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(20.dp),
+    large = RoundedCornerShape(28.dp)
+)
+
+val FitnessTypography = Typography(
+    displayLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold),
+    displayMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold),
+    displaySmall = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold),
+    headlineLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold),
+    headlineMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold),
+    titleLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold),
+    bodyLarge = TextStyle(fontFamily = FontFamily.SansSerif),
+    labelLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium)
+)
+
+// ---------------------------------------------------
+// Modelo de datos y proveedor de rutinas (sin cambios)
+// ---------------------------------------------------
 data class Exercise(
     val name: String,
     val durationSeconds: Int,
@@ -40,49 +90,49 @@ object RoutineProvider {
         return when (posture) {
             "SITTING" -> when (bodyPart) {
                 "ARMS_BACK" -> listOf(
-                    Exercise("El Abrazo", 30, "sitting_arms_abrazo"),
-                    Exercise("Limpiar el Cristal", 30, "sitting_arms_limpiar_cristal"),
-                    Exercise("Juntar Escápulas", 30, "sitting_arms_juntar_escapulas"),
-                    Exercise("Escalera al Cielo", 30, "sitting_arms_escalera_cielo"),
-                    Exercise("Círculos de Hombros", 30, "sitting_arms_circulos_hombros")
+                    Exercise("Elevación de hombros al techo", 30, "brazoz_espalda_sentado_ej1"),
+                    Exercise("Giro de torso", 30, "brazoz_espalda_sentado_ej2"),
+                    Exercise("Remo inclinado", 30, "brazoz_espalda_sentado_ej3"),
+                    Exercise("Círculos de brazos e inclinación", 30, "brazoz_espalda_sentado_ej4"),
+                    Exercise("Inclinación frontal con estiramiento", 30, "brazoz_espalda_sentado_ej5")
                 )
                 "LEGS_FEET" -> listOf(
-                    Exercise("Extensiones de Cuádriceps", 30, "sitting_legs_extensiones_cuadriceps"),
-                    Exercise("Círculos de Tobillo", 30, "sitting_legs_circulos_tobillo"),
-                    Exercise("Pisar el Acelerador", 30, "sitting_legs_pisar_acelerador"),
-                    Exercise("Rodilla al Pecho", 30, "sitting_legs_rodilla_pecho"),
-                    Exercise("Apertura de Cadera", 30, "sitting_legs_apertura_cadera")
+                    Exercise("Apertura de pierna", 30, "piernas_sentado_ej1"),
+                    Exercise("Flexión de cadera", 30, "piernas_sentado_ej2"),
+                    Exercise("Patada horizontal", 30, "piernas_sentado_ej3"),
+                    Exercise("Patada recta", 30, "piernas_sentado_ej4"),
+                    Exercise("Flexión con palmada", 30, "piernas_sentado_ej5")
                 )
                 "FULL_BODY" -> listOf(
-                    Exercise("Marcha con Braceo", 30, "sitting_full_marcha_braceo"),
-                    Exercise("Torsión de Cintura", 30, "sitting_full_torsion_cintura"),
-                    Exercise("El Remador", 30, "sitting_full_el_remador"),
-                    Exercise("Inclinación Lateral", 30, "sitting_full_inclinacion_lateral"),
-                    Exercise("Coger la Fruta", 30, "sitting_full_coger_fruta")
+                    Exercise("Extensión coordinada de brazos y piernaso", 30, "cuerpo_entero_sentado_ej1"),
+                    Exercise("Elevación de brazo y pierna unilatera", 30, "cuerpo_entero_sentado_ej2"),
+                    Exercise("Crunch abdominal sentado", 30, "cuerpo_entero_sentado_ej3"),
+                    Exercise("Giro de torso pierna con brazos cruzados", 30, "cuerpo_entero_sentado_ej4"),
+                    Exercise("Elevación de rodilla con palmada", 30, "cuerpo_entero_sentado_ej5")
                 )
                 else -> emptyList()
             }
             "STANDING" -> when (bodyPart) {
                 "ARMS_BACK" -> listOf(
-                    Exercise("Flexiones de Pared", 30, "standing_arms_flexiones_pared"),
-                    Exercise("El Reloj", 30, "standing_arms_el_reloj"),
-                    Exercise("Empuje Frontal", 30, "standing_arms_empuje_frontal"),
-                    Exercise("Vuelo Lateral", 30, "standing_arms_vuelo_lateral"),
-                    Exercise("Nadador de Espalda", 30, "standing_arms_nadador_espalda")
+                    Exercise("Empuje frontal con apertura de manos", 30, "brazoz_espalda_de_pie_ej1"),
+                    Exercise("Apertura lateral de brazos", 30, "brazoz_espalda_de_pie_ej2"),
+                    Exercise("Elevación frontal de brazos", 30, "brazoz_espalda_de_pie_ej3"),
+                    Exercise("Remo de pie inclinado", 30, "brazoz_espalda_de_pie_ej4"),
+                    Exercise("Extensión de brazos hacia atrás", 30, "brazoz_espalda_de_pie_ej5")
                 )
                 "LEGS_FEET" -> listOf(
-                    Exercise("Puntillas con apoyo", 30, "standing_legs_puntillas"),
-                    Exercise("Flexión de Rodilla Atrás", 30, "standing_legs_flexion_rodilla"),
-                    Exercise("Separación Lateral", 30, "standing_legs_separacion_lateral"),
-                    Exercise("Sentadilla de Sofá", 30, "standing_legs_sentadilla_sofa"),
-                    Exercise("Balanceo de Peso", 30, "standing_legs_balanceo_peso")
+                    Exercise("Levantamiento de rodilla", 30, "piernas_de_pie_ej1"),
+                    Exercise("Patada trasera", 30, "piernas_de_pie_ej2"),
+                    Exercise("Elevación lateral de pierna", 30, "piernas_de_pie_ej3"),
+                    Exercise("Flexión diagonal", 30, "piernas_de_pie_ej4"),
+                    Exercise("Toque de pie", 30, "piernas_de_pie_ej5")
                 )
                 "FULL_BODY" -> listOf(
-                    Exercise("El Péndulo", 30, "standing_full_el_pendulo"),
-                    Exercise("Paso Adelante y Atrás", 30, "standing_full_paso_adelante"),
-                    Exercise("Estiramiento de Sol", 30, "standing_full_estiramiento_sol"),
-                    Exercise("Rodilla-Codo Opuesto", 30, "standing_full_rodilla_codo"),
-                    Exercise("Caminata en el Sitio", 30, "standing_full_caminata_sitio")
+                    Exercise("Crunch abdominal de pie", 30, "cuerpo_entero_de_pie_ej1"),
+                    Exercise("Aperturas de hombro", 30, "cuerpo_entero_de_pie_ej2"),
+                    Exercise("Semi sentadilla tocando pies", 30, "cuerpo_entero_de_pie_ej3"),
+                    Exercise("Zancada", 30, "cuerpo_entero_de_pie_ej4"),
+                    Exercise("Remo", 30, "cuerpo_entero_de_pie_ej5")
                 )
                 else -> emptyList()
             }
@@ -91,6 +141,43 @@ object RoutineProvider {
     }
 }
 
+fun getVideoResId(videoName: String): Int = when (videoName) {
+    "brazoz_espalda_sentado_ej1" -> R.raw.brazoz_espalda_sentado_ej1
+    "brazoz_espalda_sentado_ej2" -> R.raw.brazoz_espalda_sentado_ej2
+    "brazoz_espalda_sentado_ej3" -> R.raw.brazoz_espalda_sentado_ej3
+    "brazoz_espalda_sentado_ej4" -> R.raw.brazoz_espalda_sentado_ej4
+    "brazoz_espalda_sentado_ej5" -> R.raw.brazoz_espalda_sentado_ej5
+    "piernas_sentado_ej1" -> R.raw.piernas_sentado_ej1
+    "piernas_sentado_ej2" -> R.raw.piernas_sentado_ej2
+    "piernas_sentado_ej3" -> R.raw.piernas_sentado_ej3
+    "piernas_sentado_ej4" -> R.raw.piernas_sentado_ej4
+    "piernas_sentado_ej5" -> R.raw.piernas_sentado_ej5
+    "cuerpo_entero_sentado_ej1" -> R.raw.cuerpo_entero_sentado_ej1
+    "cuerpo_entero_sentado_ej2" -> R.raw.cuerpo_entero_sentado_ej2
+    "cuerpo_entero_sentado_ej3" -> R.raw.cuerpo_entero_sentado_ej3
+    "cuerpo_entero_sentado_ej4" -> R.raw.cuerpo_entero_sentado_ej4
+    "cuerpo_entero_sentado_ej5" -> R.raw.cuerpo_entero_sentado_ej5
+    "brazoz_espalda_de_pie_ej1" -> R.raw.brazoz_espalda_de_pie_ej1
+    "brazoz_espalda_de_pie_ej2" -> R.raw.brazoz_espalda_de_pie_ej2
+    "brazoz_espalda_de_pie_ej3" -> R.raw.brazoz_espalda_de_pie_ej3
+    "brazoz_espalda_de_pie_ej4" -> R.raw.brazoz_espalda_de_pie_ej4
+    "brazoz_espalda_de_pie_ej5" -> R.raw.brazoz_espalda_de_pie_ej5
+    "piernas_de_pie_ej1" -> R.raw.piernas_de_pie_ej1
+    "piernas_de_pie_ej2" -> R.raw.piernas_de_pie_ej2
+    "piernas_de_pie_ej3" -> R.raw.piernas_de_pie_ej3
+    "piernas_de_pie_ej4" -> R.raw.piernas_de_pie_ej4
+    "piernas_de_pie_ej5" -> R.raw.piernas_de_pie_ej5
+    "cuerpo_entero_de_pie_ej1" -> R.raw.cuerpo_entero_de_pie_ej1
+    "cuerpo_entero_de_pie_ej2" -> R.raw.cuerpo_entero_de_pie_ej2
+    "cuerpo_entero_de_pie_ej3" -> R.raw.cuerpo_entero_de_pie_ej3
+    "cuerpo_entero_de_pie_ej4" -> R.raw.cuerpo_entero_de_pie_ej4
+    "cuerpo_entero_de_pie_ej5" -> R.raw.cuerpo_entero_de_pie_ej5
+    else -> 0
+}
+
+// ---------------------------------------------------
+// Pantalla de ejecución de ejercicio (estilizada)
+// ---------------------------------------------------
 @Composable
 fun ExerciseExecutionScreen(
     exercise: Exercise,
@@ -100,19 +187,27 @@ fun ExerciseExecutionScreen(
     hardwareControl: HardwareControl,
     externalPauseTrigger: Int = 0
 ) {
-    val context = LocalContext.current
     var timeLeft by remember { mutableIntStateOf(exercise.durationSeconds) }
     var isPaused by remember { mutableStateOf(false) }
     var totalSpentInThisExercise by remember { mutableIntStateOf(0) }
 
+    // Animación del progreso circular
+    val animatedProgress by animateFloatAsState(
+        targetValue = if (exercise.durationSeconds > 0) timeLeft.toFloat() / exercise.durationSeconds.toFloat() else 0f,
+        animationSpec = tween(durationMillis = 1000, easing = LinearEasing),
+        label = "progress"
+    )
+
     val videoResId = remember(exercise.videoResName) {
-        context.resources.getIdentifier(exercise.videoResName, "raw", context.packageName)
+        getVideoResId(exercise.videoResName)
     }
 
+    // Sincronización con pausa externa
     LaunchedEffect(externalPauseTrigger) {
         if (externalPauseTrigger > 0) { isPaused = !isPaused }
     }
 
+    // Emociones y luces según pausa
     LaunchedEffect(isPaused) {
         if (!isPaused) {
             systemControl.setEmotion(EmotionsType.SMILE)
@@ -123,11 +218,13 @@ fun ExerciseExecutionScreen(
         }
     }
 
+    // Reiniciar al cambiar de ejercicio
     LaunchedEffect(exercise) {
         timeLeft = exercise.durationSeconds
         totalSpentInThisExercise = 0
     }
 
+    // Temporizador
     LaunchedEffect(key1 = timeLeft, key2 = isPaused) {
         if (!isPaused && timeLeft > 0) {
             delay(1000L)
@@ -138,95 +235,161 @@ fun ExerciseExecutionScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF121212))
-            .padding(24.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+
+    MaterialTheme(colorScheme = FitnessColorScheme, shapes = FitnessShapes, typography = FitnessTypography) {
+        // Usamos Box en lugar de Column para poder poner cosas ENCIMA del video
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black) // Fondo negro para los bordes del video
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Text(
-                text = exercise.name,
-                color = Color.White,
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-
-            Box(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                if (videoResId != 0) {
-                    AndroidView(
-                        factory = { ctx ->
-                            VideoView(ctx).apply {
-                                val uri = Uri.parse("android.resource://${ctx.packageName}/$videoResId")
-                                setVideoURI(uri)
-                                setOnPreparedListener { mp ->
-                                    mp.isLooping = true
-                                    if (!isPaused) start()
-                                }
+            // 1. EL VIDEO (Capa del fondo, ocupa toda la pantalla)
+            if (videoResId != 0) {
+                AndroidView(
+                    factory = { ctx ->
+                        VideoView(ctx).apply {
+                            val uri = "android.resource://${ctx.packageName}/$videoResId".toUri()
+                            setVideoURI(uri)
+                            setOnPreparedListener { mp ->
+                                mp.isLooping = true
+                                // Esto hace que el video se estire para llenar la pantalla
+                                mp.setVideoScalingMode(android.media.MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING)
+                                if (!isPaused) start()
                             }
-                        },
-                        update = { view ->
-                            if (isPaused) view.pause() else view.start()
-                        },
-                        modifier = Modifier.size(width = 640.dp, height = 360.dp)
-                    )
-                } else {
+                        }
+                    },
+                    update = { view ->
+                        if (isPaused) view.pause() else view.start()
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize().background(Color(0xFF1E293B)),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
                         imageVector = exercise.icon,
                         contentDescription = null,
-                        modifier = Modifier.size(240.dp),
+                        modifier = Modifier.size(200.dp),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    )
+                }
+            }
+
+            // Capa oscura que aparece solo cuando el video está en pausa
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isPaused,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.6f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.PauseCircle,
+                        contentDescription = "Pausado",
+                        modifier = Modifier.size(120.dp),
                         tint = Color.White
                     )
                 }
             }
 
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(bottom = 32.dp)
+            // 2. EL TÍTULO (Superpuesto arriba, con un leve degradado oscuro para que se lea)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)
+                        )
+                    )
+                    .padding(top = 24.dp, bottom = 48.dp, start = 16.dp, end = 16.dp),
+                contentAlignment = Alignment.TopCenter
             ) {
                 Text(
-                    text = "Tiempo: 0:${timeLeft.toString().padStart(2, '0')}",
+                    text = exercise.name,
+                    style = MaterialTheme.typography.displaySmall.copy(fontSize = 36.sp),
                     color = Color.White,
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Medium
+                    textAlign = TextAlign.Center
                 )
+            }
 
-                Spacer(modifier = Modifier.height(32.dp))
+            // 3. LOS CONTROLES (Superpuestos abajo, en una sola fila)
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter) // Pegado abajo
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
+                        )
+                    )
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                // A la izquierda: Botón de terminar
+                TextButton(
+                    onClick = { onFinishRoutine(totalSpentInThisExercise) },
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    Icon(Icons.Default.Stop, contentDescription = null, tint = Color(0xFFFF7043))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Terminar",
+                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 24.sp),
+                        color = Color(0xFFFF7043)
+                    )
+                }
 
-                Button(
+                // Al centro: Botón redondo de Pausa / Reanudar
+                FloatingActionButton(
                     onClick = { isPaused = !isPaused },
-                    colors = ButtonDefaults.buttonColors(containerColor = if (isPaused) Color(0xFF4CAF50) else Color(0xFFFF941D)),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.height(84.dp).width(280.dp)
+                    containerColor = if (isPaused) Color(0xFF4CAF50) else Color(0xFFFF941D),
+                    contentColor = Color.White,
+                    modifier = Modifier.size(80.dp),
+                    shape = CircleShape
                 ) {
                     Icon(
                         imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
                         contentDescription = null,
-                        modifier = Modifier.size(36.dp),
-                        tint = Color.White
+                        modifier = Modifier.size(48.dp)
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(text = if (isPaused) "Reanudar" else "Pausar", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
-                
-                TextButton(onClick = { onFinishRoutine(totalSpentInThisExercise) }, modifier = Modifier.padding(top = 16.dp)) {
-                    Text("Terminar rutina por hoy", color = Color.Gray, fontSize = 16.sp)
+
+                // A la derecha: El reloj circular (más compacto)
+                Box(contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        progress = { animatedProgress },
+                        modifier = Modifier.size(100.dp),
+                        strokeWidth = 8.dp,
+                        color = if (isPaused) Color(0xFFFFA726) else MaterialTheme.colorScheme.primary,
+                        trackColor = Color.White.copy(alpha = 0.2f),
+                        strokeCap = StrokeCap.Round
+                    )
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "$timeLeft",
+                            style = MaterialTheme.typography.titleLarge.copy(fontSize = 36.sp),
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+// ---------------------------------------------------
+// Pantalla de descanso (estilizada con efecto de respiración)
+// ---------------------------------------------------
 @Composable
 fun RestScreen(
     onContinue: () -> Unit,
@@ -235,6 +398,25 @@ fun RestScreen(
     hardwareControl: HardwareControl
 ) {
     var timeLeft by remember { mutableIntStateOf(90) }
+
+    // Efecto de respiración
+    val infiniteTransition = rememberInfiniteTransition(label = "breath")
+    val breathScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "breathScale"
+    )
+
+    // Temporizador circular
+    val animatedProgress by animateFloatAsState(
+        targetValue = timeLeft / 90f,
+        animationSpec = tween(durationMillis = 1000, easing = LinearEasing),
+        label = "restProgress"
+    )
 
     DisposableEffect(Unit) {
         systemControl.setEmotion(EmotionsType.NORMAL)
@@ -254,97 +436,359 @@ fun RestScreen(
     val minutes = timeLeft / 60
     val seconds = timeLeft % 60
 
-    Box(
-        modifier = Modifier.fillMaxSize().background(Color(0xFF121212)).padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "¡Buen trabajo!\nTómate un respiro",
-                color = Color.White,
-                fontSize = 44.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                lineHeight = 52.sp
-            )
-            Spacer(modifier = Modifier.height(48.dp))
-            Text(
-                text = String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds),
-                color = Color.White,
-                fontSize = 100.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
-            Spacer(modifier = Modifier.height(64.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(24.dp)
+    MaterialTheme(colorScheme = FitnessColorScheme, shapes = FitnessShapes, typography = FitnessTypography) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFF0B1120), Color(0xFF0F3460))
+                    )
+                )
+        ) {
+            // Círculo de fondo con efecto de respiración
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                Button(
-                    onClick = onFinishEarly,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF7043)),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.height(88.dp).weight(1f)
-                ) {
-                    Text("Terminar por hoy", textAlign = TextAlign.Center, fontSize = 20.sp, color = Color.White)
+                Box(
+                    modifier = Modifier
+                        .size(400.dp)
+                        .scale(breathScale)
+                        .background(Color.White.copy(alpha = 0.03f), CircleShape)
+                )
+                Box(
+                    modifier = Modifier
+                        .size(300.dp)
+                        .scale(breathScale * 0.9f)
+                        .background(Color.White.copy(alpha = 0.05f), CircleShape)
+                )
+            }
+
+            // Contenido principal
+            Column(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Spacer(modifier = Modifier.weight(0.3f))
+
+                Icon(
+                    Icons.Default.SelfImprovement,
+                    contentDescription = null,
+                    modifier = Modifier.size(90.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "¡Buen trabajo!\nTómate un respiro",
+                    style = MaterialTheme.typography.headlineLarge.copy(fontSize = 44.sp),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 52.sp
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Temporizador circular
+                Box(contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        progress = { animatedProgress },
+                        modifier = Modifier.size(240.dp),
+                        strokeWidth = 16.dp,
+                        color = MaterialTheme.colorScheme.secondary,
+                        trackColor = Color.White.copy(alpha = 0.15f),
+                        strokeCap = StrokeCap.Round
+                    )
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds),
+                            style = MaterialTheme.typography.displaySmall.copy(fontSize = 64.sp),
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
                 }
-                Button(
-                    onClick = onContinue,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.height(88.dp).weight(1f)
+
+                Spacer(modifier = Modifier.height(48.dp))
+
+                // Botones
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text("Continuar ahora", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    OutlinedButton(
+                        onClick = onFinishEarly,
+                        modifier = Modifier
+                            .height(84.dp)
+                            .weight(1f),
+                        shape = MaterialTheme.shapes.medium,
+                        border = BorderStroke(2.dp, Color(0xFFFF7043)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF7043))
+                    ) {
+                        Text(
+                            "Terminar por hoy",
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 24.sp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    Button(
+                        onClick = onContinue,
+                        modifier = Modifier
+                            .height(84.dp)
+                            .weight(1f)
+                            .shadow(12.dp, RoundedCornerShape(20.dp)),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.horizontalGradient(
+                                        colors = listOf(Color(0xFF4ADE80), Color(0xFF22C55E))
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "Continuar ahora",
+                                style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp),
+                                color = Color.White
+                            )
+                        }
+                    }
                 }
+
+                Spacer(modifier = Modifier.weight(0.3f))
             }
         }
     }
 }
 
+// ---------------------------------------------------
+// Pantalla de finalización (con trofeo y confeti)
+// ---------------------------------------------------
 @Composable
 fun RoutineFinishedScreen(
-    totalMinutes: Int,
+    totalTimeInSeconds: Int,
     completed: Boolean,
     onBackToStart: () -> Unit,
     systemControl: SystemControl,
     hardwareControl: HardwareControl,
     projectorControl: ProjectorControl
 ) {
+    // Animación del trofeo
+    val trophyScale by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "trophy"
+    )
+
+    // Confeti (partículas animadas)
+    var showConfetti by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        showConfetti = true
+    }
+
     DisposableEffect(Unit) {
         systemControl.setEmotion(EmotionsType.LAUGHTER)
         hardwareControl.setEarsLED(LED.MODE_FLICKER_RANDOM, 3, 5)
-        // Apagamos el láser con seguridad al terminar
         projectorControl.switchProjector(false)
         onDispose { }
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize().background(Color(0xFF121212)).padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.EmojiEvents, null, tint = Color(0xFFFFD700), modifier = Modifier.size(120.dp))
-            Spacer(modifier = Modifier.height(32.dp))
-            Text(
-                text = if (completed) "¡Felicidades!\nHas completado tu rutina" else "¡Buen trabajo!\nHas terminado por hoy",
-                color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, lineHeight = 48.sp
-            )
-            Spacer(modifier = Modifier.height(48.dp))
-            Surface(color = Color(0xFF1E1E1E), shape = RoundedCornerShape(20.dp), modifier = Modifier.width(280.dp)) {
-                Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Schedule, null, tint = Color(0xFF56CCF2), modifier = Modifier.size(32.dp))
-                    Text("Tiempo:", color = Color.Gray, fontSize = 20.sp)
-                    Text(text = "$totalMinutes minutos", color = Color(0xFF56CCF2), fontSize = 36.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-            Spacer(modifier = Modifier.height(64.dp))
-            Button(
-                onClick = onBackToStart,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0066FF)),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.height(68.dp).width(320.dp)
+    val m = totalTimeInSeconds / 60
+    val s = totalTimeInSeconds % 60
+    val finalTimeDisplay = if (m > 0) {
+        String.format(Locale.getDefault(), "%d:%02d min", m, s)
+    } else {
+        "$s segundos"
+    }
+
+    MaterialTheme(colorScheme = FitnessColorScheme, shapes = FitnessShapes, typography = FitnessTypography) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFF0B1120), Color(0xFF1E3A8A))
+                    )
+                )
+        ) {
+            // Capa de confeti encima de todo
+            AnimatedVisibility(
+                visible = showConfetti,
+                enter = fadeIn(),
+                exit = fadeOut()
             ) {
-                Text("Volver al inicio", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                ConfettiView()
+            }
+
+            Column(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Spacer(modifier = Modifier.weight(0.2f))
+
+                // Trofeo animado
+                Icon(
+                    Icons.Default.EmojiEvents,
+                    contentDescription = "Trofeo",
+                    modifier = Modifier
+                        .size(200.dp)
+                        .scale(trophyScale),
+                    tint = Color(0xFFFFD700)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = if (completed) "¡Felicidades!\nHas completado tu rutina" else "¡Buen trabajo!\nHas terminado por hoy",
+                    style = MaterialTheme.typography.headlineLarge.copy(fontSize = 42.sp),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 50.sp
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Tarjeta de resumen
+                Card(
+                    shape = MaterialTheme.shapes.large,
+                    elevation = CardDefaults.cardElevation(defaultElevation = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    modifier = Modifier.width(360.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(24.dp)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.Schedule,
+                            contentDescription = null,
+                            modifier = Modifier.size(36.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "Tiempo total",
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 40.sp),
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                        Text(
+                            text = finalTimeDisplay,
+                            style = MaterialTheme.typography.displaySmall.copy(fontSize = 48.sp),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(48.dp))
+
+                // Botón volver
+                Button(
+                    onClick = onBackToStart,
+                    modifier = Modifier
+                        .height(84.dp)
+                        .fillMaxWidth(0.45f)
+                        .shadow(12.dp, RoundedCornerShape(20.dp)),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(Color(0xFF2563EB), Color(0xFF1E40AF))
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "Volver al inicio",
+                            style = MaterialTheme.typography.titleLarge.copy(fontSize = 28.sp),
+                            color = Color.White
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.weight(0.2f))
             }
         }
     }
 }
+
+// ---------------------------------------------------
+// Componente de confeti (partículas simples con Canvas)
+// ---------------------------------------------------
+@Composable
+private fun ConfettiView() {
+    val particles = remember {
+        List(50) {
+            Particle(
+                x = Random.nextFloat(),
+                y = Random.nextFloat() * -0.5f,
+                speed = Random.nextFloat() * 0.005f + 0.003f,
+                size = Random.nextFloat() * 8f + 4f,
+                color = Color(
+                    red = Random.nextFloat() * 0.8f + 0.2f,
+                    green = Random.nextFloat() * 0.8f + 0.2f,
+                    blue = Random.nextFloat() * 0.8f + 0.2f,
+                    alpha = 1f
+                ),
+                angle = Random.nextFloat() * 360f
+            )
+        }
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "confetti")
+    val progress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "confettiProgress"
+    )
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        particles.forEach { particle ->
+            val currentY = particle.y + progress * particle.speed * 100f
+            val drawY = (currentY % 1.1f) * size.height
+            val drawX = particle.x * size.width
+
+            rotate(
+                degrees = particle.angle + progress * 360f,
+                pivot = Offset(drawX, drawY)
+            ) {
+                drawRect(
+                    color = particle.color,
+                    topLeft = Offset(drawX - particle.size / 2, drawY - particle.size / 2),
+                    size = androidx.compose.ui.geometry.Size(particle.size, particle.size)
+                )
+            }
+        }
+    }
+}
+
+private data class Particle(
+    val x: Float,
+    val y: Float,
+    val speed: Float,
+    val size: Float,
+    val color: Color,
+    val angle: Float
+)

@@ -1,37 +1,56 @@
 package com.unizar.sanbotbasicproject
+
+import android.util.Log
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MonitorHeart
-import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.sanbot.opensdk.function.beans.EmotionsType
 import com.sanbot.opensdk.function.beans.LED
 import com.unizar.sanbotbasicproject.robotControl.HardwareControl
 import com.unizar.sanbotbasicproject.robotControl.SpeechControl
 import com.unizar.sanbotbasicproject.robotControl.SystemControl
 import com.unizar.sanbotbasicproject.ui.VoiceHud
-import android.util.Log
 
 @Composable
 fun StartSession(
     onStartClick: () -> Unit,
-    onVideoClick: () -> Unit,
     speechControl: SpeechControl,
     systemControl: SystemControl,
     hardwareControl: HardwareControl
 ) {
     var isListening by remember { mutableStateOf(false) }
 
-    DisposableEffect(Unit) {
+    // Animación de pulso suave en el botón
+    val infiniteTransition = rememberInfiniteTransition(label = "startPulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.03f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseScale"
+    )
 
+    DisposableEffect(Unit) {
         speechControl.onListeningStateChanged = { hardwareState ->
             isListening = hardwareState
         }
@@ -48,64 +67,119 @@ fun StartSession(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF121212))
-            .padding(24.dp)
+    MaterialTheme(
+        colorScheme = FitnessColorScheme,
+        shapes = FitnessShapes,
+        typography = FitnessTypography
     ) {
-
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFF0B1120), Color(0xFF1E3A8A))
+                    )
+                )
+                .padding(24.dp)
         ) {
-            Button(
-                onClick = {
-                    speechControl.stopListening()
-                    onStartClick()
-                },
-                modifier = Modifier.size(width = 560.dp, height = 300.dp),
-                shape = RoundedCornerShape(32.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0056D2)),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.MonitorHeart,
-                        contentDescription = null,
-                        modifier = Modifier.size(100.dp),
-                        tint = Color.White
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Comenzar Ejercicio",
-                        style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White
-                    )
+                // Mensaje de bienvenida
+                Text(
+                    text = "Tu compañero de\nentrenamiento",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontSize = 40.sp,
+                        lineHeight = 48.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(48.dp))
+
+                // Botón principal de comenzar
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .scale(pulseScale) // pulso sutil
+                        .shadow(20.dp, RoundedCornerShape(48.dp))
+                ) {
+                    Button(
+                        onClick = {
+                            speechControl.stopListening()
+                            onStartClick()
+                        },
+                        modifier = Modifier
+                            .size(width = 560.dp, height = 300.dp)
+                            .border(
+                                width = 2.dp,
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.3f),
+                                        Color.White.copy(alpha = 0.0f)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(48.dp)
+                            ),
+                        shape = RoundedCornerShape(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                        contentPadding = PaddingValues(0.dp),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color(0xFF2563EB),
+                                            Color(0xFF1E40AF)
+                                        )
+                                    ),
+                                    RoundedCornerShape(48.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                // Icono dentro de un círculo decorativo
+                                Box(
+                                    modifier = Modifier
+                                        .size(120.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.MonitorHeart,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(70.dp),
+                                        tint = Color.White
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(20.dp))
+                                Text(
+                                    text = "Comenzar Ejercicio",
+                                    style = MaterialTheme.typography.displaySmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 36.sp
+                                    ),
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(48.dp))
+
+                VoiceHud(
+                    isListening = isListening,
+                    helpText = "O dime: \"Empezar ejercicio\""
+                )
             }
-
-            Spacer(modifier = Modifier.height(30.dp))
-
-            // Botón de prueba de video
-            OutlinedButton(
-                onClick = onVideoClick,
-                border = ButtonDefaults.outlinedButtonBorder.copy(width = 1.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-            ) {
-                Icon(Icons.Default.VideoLibrary, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Probar Reproductor de Video")
-            }
-
-            Spacer(modifier = Modifier.height(30.dp))
-
-            // Usamos el componente VoiceHud
-            VoiceHud(
-                isListening = isListening,
-                helpText = "O dime: \"Empezar ejercicio\""
-            )
         }
     }
 }
@@ -116,18 +190,14 @@ fun startStartSessionVoiceFlow(
     systemControl: SystemControl,
     hardwareControl: HardwareControl
 ) {
-    // Sonrisa y orejas azules (fijo)
     systemControl.setEmotion(EmotionsType.SMILE)
     hardwareControl.setEarsLED(LED.MODE_BLUE)
 
-    // Usamos el método ask de nuestro SpeechControl.
-    // El robot hablará y, automáticamente, abrirá el micro al terminar.
     speechControl.ask("Hola, pulsa el botón, tócame la cabeza o dime empezar ejercicio para comenzar") { text ->
         val textoLimpio = text.lowercase()
         Log.d("Speech Control", "Texto limpio: $textoLimpio")
-        // Si detecta la palabra clave, avanza a la siguiente pantalla
         if ("empezar" in textoLimpio || "ejercicio" in textoLimpio || "comenzar" in textoLimpio) {
-            speechControl.stopListening() // Paramos el micro por seguridad
+            speechControl.stopListening()
             onStartClick()
         }
     }
@@ -136,5 +206,5 @@ fun startStartSessionVoiceFlow(
 fun stopStartSessionVoiceFlow(
     speechControl: SpeechControl
 ) {
-    speechControl.stopListening() // Usamos nuestro método limpio de parada
+    speechControl.stopListening()
 }

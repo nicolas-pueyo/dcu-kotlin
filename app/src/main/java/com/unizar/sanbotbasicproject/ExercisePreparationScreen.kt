@@ -1,15 +1,16 @@
 package com.unizar.sanbotbasicproject
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -17,8 +18,8 @@ import androidx.compose.ui.unit.sp
 import com.sanbot.opensdk.function.beans.EmotionsType
 import com.sanbot.opensdk.function.beans.LED
 import com.unizar.sanbotbasicproject.robotControl.HardwareControl
-import com.unizar.sanbotbasicproject.robotControl.SystemControl
 import com.unizar.sanbotbasicproject.robotControl.ProjectorControl
+import com.unizar.sanbotbasicproject.robotControl.SystemControl
 import kotlinx.coroutines.delay
 
 @Composable
@@ -31,13 +32,21 @@ fun ExercisePreparationScreen(
     projectorControl: ProjectorControl
 ) {
     var timeLeft by remember { mutableIntStateOf(12) }
+    val totalTime = 12
+
+    // Animación del progreso circular
+    val progress by animateFloatAsState(
+        targetValue = timeLeft.toFloat() / totalTime,
+        animationSpec = tween(durationMillis = 1000, easing = androidx.compose.animation.core.LinearEasing),
+        label = "prepProgress"
+    )
 
     // Nombre del ejercicio basado en la parte del cuerpo
     val exerciseName = when (bodyPart) {
-        "ARMS_BACK" -> "Estiramiento de brazos"
-        "LEGS_FEET" -> "Movilidad de piernas"
-        "FULL_BODY" -> "Calentamiento general"
-        else -> bodyPart // En caso de que pasemos el nombre directo del ejercicio
+        "ARMS_BACK" -> "Brazos y Espalda"
+        "LEGS_FEET" -> "Piernas y Pies"
+        "FULL_BODY" -> "Cuerpo Entero"
+        else -> bodyPart
     }
 
     // Mensaje basado en la postura
@@ -63,6 +72,7 @@ fun ExercisePreparationScreen(
         }
     }
 
+    // Temporizador
     LaunchedEffect(key1 = timeLeft) {
         if (timeLeft > 0) {
             delay(1000L)
@@ -72,74 +82,77 @@ fun ExercisePreparationScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF121212))
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
+    MaterialTheme(
+        colorScheme = FitnessColorScheme,
+        shapes = FitnessShapes,
+        typography = FitnessTypography
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            // Título
-            Text(
-                text = instructionMessage,
-                color = Color.White,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                lineHeight = 40.sp
-            )
-
-            Spacer(modifier = Modifier.height(60.dp))
-
-            // Contador circular
-            Box(
-                modifier = Modifier
-                    .size(160.dp)
-                    .border(4.dp, Color(0xFF333333), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = timeLeft.toString(),
-                    color = Color.White,
-                    fontSize = 72.sp,
-                    fontWeight = FontWeight.ExtraBold
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFF0B1120), Color(0xFF1E293B))
+                    )
                 )
-            }
-
-            Spacer(modifier = Modifier.height(60.dp))
-
-            // Siguiente ejercicio info
-            Text(
-                text = "Siguiente ejercicio:",
-                color = Color.White,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = exerciseName,
-                color = Color(0xFF56CCF2), // Azul claro como en la imagen
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(60.dp))
-
-            // Botón Saltar
-            // Botón Saltar
-            Button(
-                onClick = onCountdownFinished,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0066FF)),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.height(56.dp).width(300.dp)
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
+                // Instrucción
                 Text(
-                    text = "Saltar espera (Empezar ya)",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
+                    text = instructionMessage,
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontSize = 42.sp,
+                        lineHeight = 50.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 36.sp
+                )
+
+                Spacer(modifier = Modifier.height(48.dp))
+
+                // Contador circular animado
+                Box(contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.size(240.dp),
+                        strokeWidth = 14.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = Color.White.copy(alpha = 0.15f),
+                        strokeCap = StrokeCap.Round
+                    )
+                    Text(
+                        text = "$timeLeft",
+                        style = MaterialTheme.typography.displayLarge.copy(
+                            fontSize = 100.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(48.dp))
+
+                // Siguiente ejercicio info
+                Text(
+                    text = "Siguiente ejercicio:",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontSize = 32.sp
+                    ),
+                    color = MaterialTheme.colorScheme.outline
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = exerciseName,
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 40.sp
+                    ),
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         }

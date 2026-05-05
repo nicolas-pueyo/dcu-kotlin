@@ -3,6 +3,7 @@ package com.unizar.sanbotbasicproject
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chair
@@ -11,6 +12,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -26,152 +30,184 @@ import com.unizar.sanbotbasicproject.ui.VoiceHud
 
 @Composable
 fun PostureScreen(
-    onOptionSelected: (String) -> Unit, 
+    onOptionSelected: (String) -> Unit,
     speechControl: SpeechControl,
     systemControl: SystemControl,
     hardwareControl: HardwareControl
 ) {
     var isListening by remember { mutableStateOf(false) }
 
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-    ) {
-        val screenWidth = maxWidth
-        val screenHeight = maxHeight
-        val isLandscape = screenWidth > screenHeight
-        val baseUnit = if (isLandscape) screenHeight else screenWidth
-
-        // Gestion de speechcontrol al entrar y salir de la pantalla
-        DisposableEffect(Unit) {
-            speechControl.onListeningStateChanged = { hardwareState ->
-                isListening = hardwareState
-            }
-            startPostureVoiceFlow(
-                speechControl = speechControl, 
-                onOptionSelected = onOptionSelected,
-                systemControl = systemControl,
-                hardwareControl = hardwareControl
-            )
-
-            onDispose {
-                speechControl.onListeningStateChanged = null
-            }
+    // Gestión del speech al entrar/salir
+    DisposableEffect(Unit) {
+        speechControl.onListeningStateChanged = { hardwareState ->
+            isListening = hardwareState
         }
+        startPostureVoiceFlow(
+            speechControl = speechControl,
+            onOptionSelected = onOptionSelected,
+            systemControl = systemControl,
+            hardwareControl = hardwareControl
+        )
+        onDispose {
+            speechControl.onListeningStateChanged = null
+        }
+    }
 
-
-        Column(
+    MaterialTheme(
+        colorScheme = FitnessColorScheme,
+        shapes = FitnessShapes,
+        typography = FitnessTypography
+    ) {
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(baseUnit * 0.05f),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFF0B1120), Color(0xFF1E293B))
+                    )
+                )
         ) {
-            // Título adaptable
-            Text(
-                text = "¿Cómo prefieres hacer ejercicio hoy?",
-                color = Color.White,
-                fontSize = (baseUnit.value * 0.07f).sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                lineHeight = (baseUnit.value * 0.09f).sp,
-                modifier = Modifier.padding(top = screenHeight * 0.02f)
-            )
+            val screenWidth = maxWidth
+            val screenHeight = maxHeight
+            val isLandscape = screenWidth > screenHeight
 
-            // Contenedor de tarjetas adaptable
-            Row(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(vertical = screenHeight * 0.03f),
-                horizontalArrangement = Arrangement.spacedBy(screenWidth * 0.04f, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp, vertical = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                PostureOptionCard(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(0.9f),
-                    title = "Sentado en silla",
-                    subtitle = "(Más seguro)",
-                    icon = Icons.Default.Chair,
-                    backgroundColor = Color(0xFFF7941D),
-                    baseUnit = baseUnit,
-                    onClick = {
-                        speechControl.stopListening()
-                        onOptionSelected("SITTING")
-                    }
+                // Título
+                Text(
+                    text = "¿Cómo prefieres hacer\n ejercicio hoy?",
+                    style = MaterialTheme.typography.displaySmall.copy(
+                        fontSize = if (isLandscape) 42.sp else 46.sp,
+                        lineHeight = if (isLandscape) 38.sp else 44.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
 
-                PostureOptionCard(
+                // Tarjetas de opciones
+                Row(
                     modifier = Modifier
+                        .fillMaxWidth()
                         .weight(1f)
-                        .fillMaxHeight(0.9f),
-                    title = "De pie",
-                    subtitle = "(Para equilibrio)",
-                    icon = Icons.Default.Person,
-                    backgroundColor = Color(0xFF56CCF2),
-                    baseUnit = baseUnit,
-                    onClick = {
-                        speechControl.stopListening()
-                        onOptionSelected("STANDING")
-                    }
+                        .padding(vertical = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PostureOptionCard(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(0.85f),
+                        title = "Sentado en silla",
+                        subtitle = "Más seguro",
+                        icon = Icons.Default.Chair,
+                        gradientColors = listOf(Color(0xFFF7941D), Color(0xFFFF6D00)),
+                        iconTint = Color.White,
+                        onClick = {
+                            speechControl.stopListening()
+                            onOptionSelected("SITTING")
+                        }
+                    )
+
+                    PostureOptionCard(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(0.85f),
+                        title = "De pie",
+                        subtitle = "Para equilibrio",
+                        icon = Icons.Default.Person,
+                        gradientColors = listOf(Color(0xFF38BDF8), Color(0xFF0284C7)),
+                        iconTint = Color.White,
+                        onClick = {
+                            speechControl.stopListening()
+                            onOptionSelected("STANDING")
+                        }
+                    )
+                }
+
+                // VoiceHud
+                VoiceHud(
+                    isListening = isListening,
+                    helpText = "O dime: \"Ejercicio sentado\" o \"Ejercicio de pie\"",
+                    modifier = Modifier.padding(bottom = 16.dp)
                 )
             }
-
-            // Usamos el componente VoiceHud
-            VoiceHud(
-                isListening = isListening,
-                helpText = "O dime: \"Ejercicio sentado\" o \"Ejercicio de pie\"",
-                modifier = Modifier.padding(bottom = screenHeight * 0.02f)
-            )
         }
     }
 }
 
 @Composable
-fun PostureOptionCard(
+private fun PostureOptionCard(
     modifier: Modifier = Modifier,
     title: String,
     subtitle: String,
     icon: ImageVector,
-    backgroundColor: Color,
-    baseUnit: androidx.compose.ui.unit.Dp,
+    gradientColors: List<Color>,
+    iconTint: Color,
     onClick: () -> Unit
 ) {
-    Surface(
-        modifier = modifier.clickable { onClick() },
-        color = backgroundColor,
-        shape = RoundedCornerShape(baseUnit * 0.03f)
+    Card(
+        modifier = modifier
+            .shadow(16.dp, RoundedCornerShape(32.dp))
+            .clickable { onClick() },
+        shape = RoundedCornerShape(32.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(baseUnit * 0.02f),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .background(
+                    Brush.verticalGradient(gradientColors),
+                    RoundedCornerShape(32.dp)
+                )
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size((baseUnit.value * 0.2f).dp),
-                tint = Color.Black
-            )
-            Spacer(modifier = Modifier.height(baseUnit * 0.02f))
-            Text(
-                text = title,
-                color = Color.Black,
-                fontSize = (baseUnit.value * 0.05f).sp,
-                fontWeight = FontWeight.ExtraBold,
-                textAlign = TextAlign.Center,
-                lineHeight = (baseUnit.value * 0.06f).sp
-            )
-            Text(
-                text = subtitle,
-                color = Color.Black,
-                fontSize = (baseUnit.value * 0.035f).sp,
-                textAlign = TextAlign.Center
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                // Icono dentro de círculo decorativo
+                Box(
+                    modifier = Modifier
+                        .size(140.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(80.dp),
+                        tint = iconTint
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 36.sp
+                    ),
+                    color = Color.White,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 24.sp
+                    ),
+                    color = Color.White.copy(alpha = 0.85f),
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
@@ -182,11 +218,9 @@ fun startPostureVoiceFlow(
     systemControl: SystemControl,
     hardwareControl: HardwareControl
 ) {
-    // El robot pone cara de duda y orejas azules
     systemControl.setEmotion(EmotionsType.QUESTION)
     hardwareControl.setEarsLED(LED.MODE_BLUE)
 
-    // Habla y abre el micro automáticamente al terminar
     speechControl.ask("¿Cómo prefieres hacer ejercicio hoy? ¿sentado o de pie?") { text ->
         val texto = text.lowercase()
         when {
@@ -205,6 +239,5 @@ fun startPostureVoiceFlow(
 fun stopPostureVoiceFlow(
     speechControl: SpeechControl
 ) {
-    // Método unificado que apaga voz y micrófono
     speechControl.stopListening()
 }
