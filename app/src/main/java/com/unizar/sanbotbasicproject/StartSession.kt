@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MonitorHeart
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,17 +31,24 @@ import com.unizar.sanbotbasicproject.robotControl.HardwareControl
 import com.unizar.sanbotbasicproject.robotControl.SpeechControl
 import com.unizar.sanbotbasicproject.robotControl.SystemControl
 import com.unizar.sanbotbasicproject.ui.VoiceHud
+import kotlin.math.roundToInt
 
 @Composable
 fun StartSession(
     onStartClick: () -> Unit,
     speechControl: SpeechControl,
     systemControl: SystemControl,
-    hardwareControl: HardwareControl
+    hardwareControl: HardwareControl,
+    ledBrightness: Int,
+    onLedBrightnessChange: (Int) -> Unit,
+    projectorBrightness: Int,
+    onProjectorBrightnessChange: (Int) -> Unit,
+    volume: Int,
+    onVolumeChange: (Int) -> Unit
 ) {
     var isListening by remember { mutableStateOf(false) }
 
-    // Animación de pulso suave en el botón
+    // Animación de pulso suave en el botón principal
     val infiniteTransition = rememberInfiniteTransition(label = "startPulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -82,6 +92,17 @@ fun StartSession(
                 )
                 .padding(24.dp)
         ) {
+            SettingsButtonWithDialog(
+                ledBrightness = ledBrightness,
+                onLedBrightnessChange = onLedBrightnessChange,
+                projectorBrightness = projectorBrightness,
+                onProjectorBrightnessChange = onProjectorBrightnessChange,
+                volume = volume,
+                onVolumeChange = onVolumeChange,
+                modifier = Modifier.align(Alignment.TopEnd)
+            )
+
+            // Contenido principal (columna central)
             Column(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.Center,
@@ -104,7 +125,7 @@ fun StartSession(
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .scale(pulseScale) // pulso sutil
+                        .scale(pulseScale)
                         .shadow(20.dp, RoundedCornerShape(48.dp))
                 ) {
                     Button(
@@ -144,7 +165,6 @@ fun StartSession(
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                // Icono dentro de un círculo decorativo
                                 Box(
                                     modifier = Modifier
                                         .size(120.dp)

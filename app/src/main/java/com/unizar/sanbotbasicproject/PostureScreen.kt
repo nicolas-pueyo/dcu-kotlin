@@ -33,7 +33,13 @@ fun PostureScreen(
     onOptionSelected: (String) -> Unit,
     speechControl: SpeechControl,
     systemControl: SystemControl,
-    hardwareControl: HardwareControl
+    hardwareControl: HardwareControl,
+    ledBrightness: Int,
+    onLedBrightnessChange: (Int) -> Unit,
+    projectorBrightness: Int,
+    onProjectorBrightnessChange: (Int) -> Unit,
+    volume: Int,
+    onVolumeChange: (Int) -> Unit
 ) {
     var isListening by remember { mutableStateOf(false) }
 
@@ -66,7 +72,18 @@ fun PostureScreen(
                         colors = listOf(Color(0xFF0B1120), Color(0xFF1E293B))
                     )
                 )
+                .padding(24.dp)
         ) {
+            SettingsButtonWithDialog(
+                ledBrightness = ledBrightness,
+                onLedBrightnessChange = onLedBrightnessChange,
+                projectorBrightness = projectorBrightness,
+                onProjectorBrightnessChange = onProjectorBrightnessChange,
+                volume = volume,
+                onVolumeChange = onVolumeChange,
+                modifier = Modifier.align(Alignment.TopEnd)
+            )
+
             val screenWidth = maxWidth
             val screenHeight = maxHeight
             val isLandscape = screenWidth > screenHeight

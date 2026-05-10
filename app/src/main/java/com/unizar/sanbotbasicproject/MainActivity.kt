@@ -1,5 +1,7 @@
 package com.unizar.sanbotbasicproject
 
+import android.content.Context
+import android.media.AudioManager
 import android.os.Bundle
 import android.util.Log
 import android.view.WindowManager
@@ -60,6 +62,7 @@ class MainActivity : TopBaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         Log.d("MainActivity", "onCreate: Registrando actividad")
         register(MainActivity::class.java)
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         window.setFlags(
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
@@ -74,6 +77,9 @@ class MainActivity : TopBaseActivity() {
                     var currentRoutine by remember { mutableStateOf<List<Exercise>>(emptyList()) }
                     var currentExerciseIndex by remember { mutableIntStateOf(0) }
                     var totalTimeSeconds by remember { mutableIntStateOf(0) }
+                    var ledBrightness by remember { mutableIntStateOf(2) }
+                    var projectorBrightness by remember { mutableIntStateOf(0) }
+                    var volume by remember { mutableIntStateOf(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)) }
 
                     NavHost(navController = navController, startDestination = "start_session") {
 
@@ -88,7 +94,21 @@ class MainActivity : TopBaseActivity() {
                                 onStartClick = { navController.navigate("posture_screen") },
                                 speechControl = speechControl,
                                 systemControl = systemControl,
-                                hardwareControl = hardwareControl
+                                hardwareControl = hardwareControl,
+                                ledBrightness = ledBrightness,
+                                onLedBrightnessChange = {
+                                    ledBrightness = it
+                                    hardwareControl.setLEDBrightness(it)
+                                },
+                                projectorBrightness = projectorBrightness,
+                                onProjectorBrightnessChange = {
+                                    projectorBrightness = it
+                                },
+                                volume = volume,
+                                onVolumeChange = {
+                                    volume = it
+                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
+                                }
                             )
                         }
 
@@ -107,7 +127,19 @@ class MainActivity : TopBaseActivity() {
                                 },
                                 speechControl = speechControl,
                                 systemControl = systemControl,
-                                hardwareControl = hardwareControl
+                                hardwareControl = hardwareControl,
+                                ledBrightness = ledBrightness,
+                                onLedBrightnessChange = {
+                                    ledBrightness = it
+                                    hardwareControl.setLEDBrightness(it)
+                                },
+                                projectorBrightness = projectorBrightness,
+                                onProjectorBrightnessChange = { projectorBrightness = it },
+                                volume = volume,
+                                onVolumeChange = {
+                                    volume = it
+                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
+                                }
                             )
                         }
 
@@ -124,13 +156,62 @@ class MainActivity : TopBaseActivity() {
                             BodyPartSelectionScreen(
                                 onBack = { navController.popBackStack() },
                                 onOptionSelected = { part ->
-                                    currentRoutine = RoutineProvider.getRoutine(posture, part)
-                                    currentExerciseIndex = 0
-                                    navController.navigate("exercise_preparation/$posture/$part")
+                                    navController.navigate("difficulty_selection/$posture/$part")
                                 },
                                 speechControl = speechControl,
                                 systemControl = systemControl,
-                                hardwareControl = hardwareControl
+                                hardwareControl = hardwareControl,
+                                ledBrightness = ledBrightness,
+                                onLedBrightnessChange = {
+                                    ledBrightness = it
+                                    hardwareControl.setLEDBrightness(it)
+                                },
+                                projectorBrightness = projectorBrightness,
+                                onProjectorBrightnessChange = { projectorBrightness = it },
+                                volume = volume,
+                                onVolumeChange = {
+                                    volume = it
+                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
+                                }
+                            )
+                        }
+
+                        // Selección de dificultad
+                        composable(
+                            "difficulty_selection/{posture}/{bodyPart}",
+                            arguments = listOf(
+                                navArgument("posture") { type = NavType.StringType },
+                                navArgument("bodyPart") { type = NavType.StringType }
+                            ),
+                            enterTransition = { enterTransition() },
+                            exitTransition = { exitTransition() },
+                            popEnterTransition = { popEnterTransition() },
+                            popExitTransition = { popExitTransition() }
+                        ) { backStackEntry ->
+                            val posture = backStackEntry.arguments?.getString("posture") ?: "SITTING"
+                            val bodyPart = backStackEntry.arguments?.getString("bodyPart") ?: "ARMS_BACK"
+                            DifficultySelectionScreen(
+                                onBack = { navController.popBackStack() },
+                                onOptionSelected = { difficulty ->
+                                    currentRoutine = RoutineProvider.getRoutine(posture, bodyPart, difficulty)
+                                    currentExerciseIndex = 0
+                                    navController.navigate("exercise_preparation/$posture/$bodyPart")
+                                },
+                                speechControl = this@MainActivity.speechControl,
+                                systemControl = systemControl,
+                                hardwareControl = hardwareControl,
+                                ledBrightness = ledBrightness,
+                                onLedBrightnessChange = {
+                                    ledBrightness = it
+                                    hardwareControl.setLEDBrightness(it)
+                                },
+                                projectorBrightness = projectorBrightness,
+                                onProjectorBrightnessChange = { projectorBrightness = it },
+                                volume = volume,
+                                onVolumeChange = {
+                                    volume = it
+                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
+                                }
                             )
                         }
 
@@ -148,15 +229,17 @@ class MainActivity : TopBaseActivity() {
                         ) { backStackEntry ->
                             val exercise = currentRoutine.getOrNull(currentExerciseIndex)
                             if (exercise != null) {
+                                val bodyPart = backStackEntry.arguments?.getString("bodyPart") ?: ""
                                 ExercisePreparationScreen(
                                     posture = backStackEntry.arguments?.getString("posture") ?: "",
-                                    bodyPart = exercise.name,
+                                    bodyPart = bodyPart,
                                     onCountdownFinished = {
                                         navController.navigate("exercise_execution")
                                     },
                                     systemControl = systemControl,
                                     hardwareControl = hardwareControl,
-                                    projectorControl = projectorControl
+                                    projectorControl = projectorControl,
+                                    projectorBrightness = projectorBrightness
                                 )
                             }
                         }
@@ -189,7 +272,21 @@ class MainActivity : TopBaseActivity() {
                                     },
                                     systemControl = systemControl,
                                     hardwareControl = hardwareControl,
-                                    externalPauseTrigger = headTouchTrigger
+                                    externalPauseTrigger = headTouchTrigger,
+                                    speechControl = speechControl,
+                                    projectorControl = projectorControl,
+                                    ledBrightness = ledBrightness,
+                                    onLedBrightnessChange = {
+                                        ledBrightness = it
+                                        hardwareControl.setLEDBrightness(it)
+                                    },
+                                    projectorBrightness = projectorBrightness,
+                                    onProjectorBrightnessChange = { projectorBrightness = it },
+                                    volume = volume,
+                                    onVolumeChange = {
+                                        volume = it
+                                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
+                                    }
                                 )
                             }
                         }
@@ -211,7 +308,19 @@ class MainActivity : TopBaseActivity() {
                                     navController.navigate("routine_finished/false")
                                 },
                                 systemControl = systemControl,
-                                hardwareControl = hardwareControl
+                                hardwareControl = hardwareControl,
+                                ledBrightness = ledBrightness,
+                                onLedBrightnessChange = {
+                                    ledBrightness = it
+                                    hardwareControl.setLEDBrightness(it)
+                                },
+                                projectorBrightness = projectorBrightness,
+                                onProjectorBrightnessChange = { projectorBrightness = it },
+                                volume = volume,
+                                onVolumeChange = {
+                                    volume = it
+                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
+                                }
                             )
                         }
 
@@ -235,7 +344,19 @@ class MainActivity : TopBaseActivity() {
                                 },
                                 systemControl = systemControl,
                                 hardwareControl = hardwareControl,
-                                projectorControl = projectorControl
+                                projectorControl = projectorControl,
+                                ledBrightness = ledBrightness,
+                                onLedBrightnessChange = {
+                                    ledBrightness = it
+                                    hardwareControl.setLEDBrightness(it)
+                                },
+                                projectorBrightness = projectorBrightness,
+                                onProjectorBrightnessChange = { projectorBrightness = it },
+                                volume = volume,
+                                onVolumeChange = {
+                                    volume = it
+                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
+                                }
                             )
                         }
                     }

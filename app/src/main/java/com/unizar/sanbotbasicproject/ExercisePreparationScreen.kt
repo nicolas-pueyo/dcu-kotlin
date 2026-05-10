@@ -29,7 +29,8 @@ fun ExercisePreparationScreen(
     onCountdownFinished: () -> Unit,
     systemControl: SystemControl,
     hardwareControl: HardwareControl,
-    projectorControl: ProjectorControl
+    projectorControl: ProjectorControl,
+    projectorBrightness: Int
 ) {
     var timeLeft by remember { mutableIntStateOf(12) }
     val totalTime = 12
@@ -78,6 +79,8 @@ fun ExercisePreparationScreen(
             delay(1000L)
             timeLeft--
         } else {
+            // Después de los 12 segundos, aplicar el brillo
+            projectorControl.setBrightness(projectorBrightness)
             onCountdownFinished()
         }
     }

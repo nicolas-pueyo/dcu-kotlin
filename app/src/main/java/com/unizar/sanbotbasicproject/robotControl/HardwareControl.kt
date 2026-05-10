@@ -8,13 +8,14 @@ import com.sanbot.opensdk.function.unit.HardWareManager
  */
 class HardwareControl(private val hardwareManager: HardWareManager) {
 
+
     /**
      * Ajusta el nivel de brillo de la luz LED blanca.
      * @param level Nivel de brillo (1: ahorro energía, 2: suave, 3: brillante)
      * Según sección 3.3.8 de la documentación.
      */
-    fun setBrightness(level: Int) {
-        hardwareManager.setWhiteLightLevel(level)
+    fun setLEDBrightness(level: Int) {
+        hardwareManager.setWhiteLightLevel(level.coerceIn(1, 3))
     }
 
     /**

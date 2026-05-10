@@ -104,6 +104,10 @@ class SpeechControl(val speechManager: SpeechManager?) {
         speechManager.startSpeak(question, SpeakOption().apply { speed = 50; intonation = 50 })
     }
 
+    fun talk(text: String) {
+        speechManager?.startSpeak(text, SpeakOption().apply { speed = 50; intonation = 50 })
+    }
+
     fun stopListening() {
         isWaitingForResponse = false
         speechManager?.doSleep()

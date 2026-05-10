@@ -1,5 +1,6 @@
 package com.unizar.sanbotbasicproject
 
+import android.util.Log
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.foundation.BorderStroke
@@ -37,6 +38,7 @@ import com.sanbot.opensdk.function.beans.EmotionsType
 import com.sanbot.opensdk.function.beans.LED
 import com.unizar.sanbotbasicproject.robotControl.HardwareControl
 import com.unizar.sanbotbasicproject.robotControl.ProjectorControl
+import com.unizar.sanbotbasicproject.robotControl.SpeechControl
 import com.unizar.sanbotbasicproject.robotControl.SystemControl
 import kotlinx.coroutines.delay
 import java.util.Locale
@@ -86,8 +88,8 @@ data class Exercise(
 )
 
 object RoutineProvider {
-    fun getRoutine(posture: String, bodyPart: String): List<Exercise> {
-        return when (posture) {
+    fun getRoutine(posture: String, bodyPart: String, difficulty: String): List<Exercise> {
+        val baseRoutine = when (posture) {
             "SITTING" -> when (bodyPart) {
                 "ARMS_BACK" -> listOf(
                     Exercise("Elevación de hombros al techo", 30, "brazoz_espalda_sentado_ej1"),
@@ -138,6 +140,17 @@ object RoutineProvider {
             }
             else -> emptyList()
         }
+
+        val (exerciseCount, durationSeconds) = when (difficulty) {
+            "LOW" -> 3 to 30
+            "MEDIUM" -> 4 to 45
+            "HIGH" -> 5 to 60
+            else -> 5 to 30
+        }
+
+        return baseRoutine.take(exerciseCount).map { exercise ->
+            exercise.copy(durationSeconds = durationSeconds)
+        }
     }
 }
 
@@ -185,8 +198,17 @@ fun ExerciseExecutionScreen(
     onFinishRoutine: (Int) -> Unit,
     systemControl: SystemControl,
     hardwareControl: HardwareControl,
-    externalPauseTrigger: Int = 0
+    speechControl: SpeechControl,
+    projectorControl: ProjectorControl,
+    externalPauseTrigger: Int = 0,
+    ledBrightness: Int,
+    onLedBrightnessChange: (Int) -> Unit,
+    projectorBrightness: Int,
+    onProjectorBrightnessChange: (Int) -> Unit,
+    volume: Int,
+    onVolumeChange: (Int) -> Unit
 ) {
+
     var timeLeft by remember { mutableIntStateOf(exercise.durationSeconds) }
     var isPaused by remember { mutableStateOf(false) }
     var totalSpentInThisExercise by remember { mutableIntStateOf(0) }
@@ -222,6 +244,7 @@ fun ExerciseExecutionScreen(
     LaunchedEffect(exercise) {
         timeLeft = exercise.durationSeconds
         totalSpentInThisExercise = 0
+        speechControl.talk("Vamos a empezar el ejercicio: ${exercise.name}")
     }
 
     // Temporizador
@@ -252,6 +275,7 @@ fun ExerciseExecutionScreen(
                             setVideoURI(uri)
                             setOnPreparedListener { mp ->
                                 mp.isLooping = true
+                                mp.setVolume(0f, 0f)
                                 // Esto hace que el video se estire para llenar la pantalla
                                 mp.setVideoScalingMode(android.media.MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING)
                                 if (!isPaused) start()
@@ -395,9 +419,15 @@ fun RestScreen(
     onContinue: () -> Unit,
     onFinishEarly: () -> Unit,
     systemControl: SystemControl,
-    hardwareControl: HardwareControl
+    hardwareControl: HardwareControl,
+    ledBrightness: Int,
+    onLedBrightnessChange: (Int) -> Unit,
+    projectorBrightness: Int,
+    onProjectorBrightnessChange: (Int) -> Unit,
+    volume: Int,
+    onVolumeChange: (Int) -> Unit
 ) {
-    var timeLeft by remember { mutableIntStateOf(90) }
+    var timeLeft by remember { mutableIntStateOf(30) }
 
     // Efecto de respiración
     val infiniteTransition = rememberInfiniteTransition(label = "breath")
@@ -413,7 +443,7 @@ fun RestScreen(
 
     // Temporizador circular
     val animatedProgress by animateFloatAsState(
-        targetValue = timeLeft / 90f,
+        targetValue = timeLeft / 30f,
         animationSpec = tween(durationMillis = 1000, easing = LinearEasing),
         label = "restProgress"
     )
@@ -445,6 +475,7 @@ fun RestScreen(
                         colors = listOf(Color(0xFF0B1120), Color(0xFF0F3460))
                     )
                 )
+                .padding(24.dp)
         ) {
             // Círculo de fondo con efecto de respiración
             Box(
@@ -568,6 +599,16 @@ fun RestScreen(
 
                 Spacer(modifier = Modifier.weight(0.3f))
             }
+
+            SettingsButtonWithDialog(
+                ledBrightness = ledBrightness,
+                onLedBrightnessChange = onLedBrightnessChange,
+                projectorBrightness = projectorBrightness,
+                onProjectorBrightnessChange = onProjectorBrightnessChange,
+                volume = volume,
+                onVolumeChange = onVolumeChange,
+                modifier = Modifier.align(Alignment.TopEnd)
+            )
         }
     }
 }
@@ -582,7 +623,13 @@ fun RoutineFinishedScreen(
     onBackToStart: () -> Unit,
     systemControl: SystemControl,
     hardwareControl: HardwareControl,
-    projectorControl: ProjectorControl
+    projectorControl: ProjectorControl,
+    ledBrightness: Int,
+    onLedBrightnessChange: (Int) -> Unit,
+    projectorBrightness: Int,
+    onProjectorBrightnessChange: (Int) -> Unit,
+    volume: Int,
+    onVolumeChange: (Int) -> Unit
 ) {
     // Animación del trofeo
     val trophyScale by animateFloatAsState(
@@ -600,8 +647,9 @@ fun RoutineFinishedScreen(
     DisposableEffect(Unit) {
         systemControl.setEmotion(EmotionsType.LAUGHTER)
         hardwareControl.setEarsLED(LED.MODE_FLICKER_RANDOM, 3, 5)
-        projectorControl.switchProjector(false)
-        onDispose { }
+        onDispose {
+            projectorControl.switchProjector(false)
+        }
     }
 
     val m = totalTimeInSeconds / 60
@@ -621,6 +669,7 @@ fun RoutineFinishedScreen(
                         colors = listOf(Color(0xFF0B1120), Color(0xFF1E3A8A))
                     )
                 )
+                .padding(24.dp)
         ) {
             // Capa de confeti encima de todo
             AnimatedVisibility(
@@ -632,7 +681,7 @@ fun RoutineFinishedScreen(
             }
 
             Column(
-                modifier = Modifier.fillMaxSize().padding(24.dp),
+                modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -726,6 +775,16 @@ fun RoutineFinishedScreen(
 
                 Spacer(modifier = Modifier.weight(0.2f))
             }
+
+            SettingsButtonWithDialog(
+                ledBrightness = ledBrightness,
+                onLedBrightnessChange = onLedBrightnessChange,
+                projectorBrightness = projectorBrightness,
+                onProjectorBrightnessChange = onProjectorBrightnessChange,
+                volume = volume,
+                onVolumeChange = onVolumeChange,
+                modifier = Modifier.align(Alignment.TopEnd)
+            )
         }
     }
 }
