@@ -16,10 +16,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -187,7 +187,7 @@ fun SettingsButtonWithDialog(
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Default.VolumeUp,
+                            Icons.AutoMirrored.Filled.VolumeUp,
                             contentDescription = null,
                             tint = Color(0xFF38BDF8)
                         )

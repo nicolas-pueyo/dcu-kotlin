@@ -41,13 +41,10 @@ fun PostureScreen(
     volume: Int,
     onVolumeChange: (Int) -> Unit
 ) {
-    var isListening by remember { mutableStateOf(false) }
+    val isListening = speechControl.isListening
 
     // Gestión del speech al entrar/salir
-    DisposableEffect(Unit) {
-        speechControl.onListeningStateChanged = { hardwareState ->
-            isListening = hardwareState
-        }
+    DisposableEffect(speechControl) {
         startPostureVoiceFlow(
             speechControl = speechControl,
             onOptionSelected = onOptionSelected,
@@ -55,7 +52,7 @@ fun PostureScreen(
             hardwareControl = hardwareControl
         )
         onDispose {
-            speechControl.onListeningStateChanged = null
+            speechControl.stopListening()
         }
     }
 
@@ -251,10 +248,4 @@ fun startPostureVoiceFlow(
             }
         }
     }
-}
-
-fun stopPostureVoiceFlow(
-    speechControl: SpeechControl
-) {
-    speechControl.stopListening()
 }

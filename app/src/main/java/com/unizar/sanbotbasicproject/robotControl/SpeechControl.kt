@@ -3,6 +3,9 @@ package com.unizar.sanbotbasicproject.robotControl
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.sanbot.opensdk.function.beans.SpeakOption
 import com.sanbot.opensdk.function.beans.speech.Grammar
 import com.sanbot.opensdk.function.beans.speech.RecognizeTextBean
@@ -15,7 +18,10 @@ import com.sanbot.opensdk.function.unit.interfaces.speech.WakenListener
 class SpeechControl(val speechManager: SpeechManager?) {
 
     private var isWaitingForResponse = false
-    var onListeningStateChanged: ((Boolean) -> Unit)? = null
+    private var isSpeaking = false
+    private var pendingSleepAfterSpeak = false
+    var isListening by mutableStateOf(false)
+        private set
     private var onTextRecognized: ((String) -> Unit)? = null
 
     // El Handler para gestionar los tiempos de respuesta
@@ -29,20 +35,20 @@ class SpeechControl(val speechManager: SpeechManager?) {
     private fun setupListeners() {
         if (speechManager == null) return
 
-        // Listener de habla ya no usado por la funcionalidad de darle en la cabeza
-//        speechManager.setOnSpeechListener(object : SpeakListener {
-//            override fun onSpeakStatus(speakStatus: SpeakStatus) {
-//                if (speakStatus.progress >= 100f) {
-//                    Log.d("SpeechControl", "Robot terminó de hablar")
-//                    if (isWaitingForResponse) {
-//                        // Forzamos el despertado con un pequeño delay como hace Igor
-//                        speechHandler.postDelayed({
-//                            speechManager.doWakeUp()
-//                        }, 200)
-//                    }
-//                }
-//            }
-//        })
+        // Cuando termina una locución pendiente, cerramos el micro si alguien pidió parar antes.
+        speechManager.setOnSpeechListener(object : SpeakListener {
+            override fun onSpeakStatus(speakStatus: SpeakStatus) {
+                isSpeaking = speakStatus.progress < 100f
+                if (speakStatus.progress >= 100f) {
+                    Log.d("SpeechControl", "Robot terminó de hablar")
+                    if (pendingSleepAfterSpeak) {
+                        speechHandler.postDelayed({
+                            finishStopListening()
+                        }, 200)
+                    }
+                }
+            }
+        })
 
         // Listener de reconocimiento
         speechManager.setOnSpeechListener(object : RecognizeListener {
@@ -72,11 +78,11 @@ class SpeechControl(val speechManager: SpeechManager?) {
             override fun onWakeUpStatus(b: Boolean) {}
             override fun onWakeUp() {
                 Log.d("SpeechControl", "Micro Abierto")
-                onListeningStateChanged?.invoke(true)
+                isListening = true
             }
             override fun onSleep() {
                 Log.d("SpeechControl", "Micro Cerrado")
-                onListeningStateChanged?.invoke(false)
+                isListening = false
             }
         })
     }
@@ -87,6 +93,7 @@ class SpeechControl(val speechManager: SpeechManager?) {
     fun interruptAndListen() {
         Log.d("SpeechControl", "Interrumpiendo habla y abriendo micro")
         isWaitingForResponse = true
+        pendingSleepAfterSpeak = false
         speechManager?.stopSpeak() // Detiene el habla si la hay
         // Damos un pequeño margen para que el motor de voz se detenga antes de abrir micro
         speechHandler.postDelayed({
@@ -98,6 +105,8 @@ class SpeechControl(val speechManager: SpeechManager?) {
         if (speechManager == null) return
 
         isWaitingForResponse = true
+        pendingSleepAfterSpeak = false
+        isSpeaking = true
         onTextRecognized = onResponse
 
         // Hablamos
@@ -105,13 +114,24 @@ class SpeechControl(val speechManager: SpeechManager?) {
     }
 
     fun talk(text: String) {
+        pendingSleepAfterSpeak = false
+        isSpeaking = true
         speechManager?.startSpeak(text, SpeakOption().apply { speed = 50; intonation = 50 })
     }
 
     fun stopListening() {
         isWaitingForResponse = false
+        pendingSleepAfterSpeak = true
+
+        if (!isSpeaking) {
+            finishStopListening()
+        }
+    }
+
+    private fun finishStopListening() {
+        pendingSleepAfterSpeak = false
+        isListening = false
         speechManager?.doSleep()
-        speechManager?.stopSpeak()
         speechHandler.removeCallbacksAndMessages(null)
     }
 }

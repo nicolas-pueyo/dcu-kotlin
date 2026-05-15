@@ -1,9 +1,7 @@
 package com.unizar.sanbotbasicproject
 
-import android.util.Log
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.AnimatedVisibility
 import androidx.core.net.toUri
 import android.widget.VideoView
@@ -106,7 +104,7 @@ object RoutineProvider {
                     Exercise("Flexión con palmada", 30, "piernas_sentado_ej5")
                 )
                 "FULL_BODY" -> listOf(
-                    Exercise("Extensión coordinada de brazos y piernaso", 30, "cuerpo_entero_sentado_ej1"),
+                    Exercise("Extensión coordinada de brazos y piernas", 30, "cuerpo_entero_sentado_ej1"),
                     Exercise("Elevación de brazo y pierna unilatera", 30, "cuerpo_entero_sentado_ej2"),
                     Exercise("Crunch abdominal sentado", 30, "cuerpo_entero_sentado_ej3"),
                     Exercise("Giro de torso pierna con brazos cruzados", 30, "cuerpo_entero_sentado_ej4"),
@@ -199,14 +197,7 @@ fun ExerciseExecutionScreen(
     systemControl: SystemControl,
     hardwareControl: HardwareControl,
     speechControl: SpeechControl,
-    projectorControl: ProjectorControl,
     externalPauseTrigger: Int = 0,
-    ledBrightness: Int,
-    onLedBrightnessChange: (Int) -> Unit,
-    projectorBrightness: Int,
-    onProjectorBrightnessChange: (Int) -> Unit,
-    volume: Int,
-    onVolumeChange: (Int) -> Unit
 ) {
 
     var timeLeft by remember { mutableIntStateOf(exercise.durationSeconds) }
@@ -357,17 +348,52 @@ fun ExerciseExecutionScreen(
                 verticalAlignment = Alignment.Bottom
             ) {
                 // A la izquierda: Botón de terminar
-                TextButton(
+                Button(
                     onClick = { onFinishRoutine(totalSpentInThisExercise) },
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier
+                        .wrapContentWidth()
+                        .height(72.dp)
+                        // Le damos una sombra más pronunciada que pega con el tema oscuro
+                        .shadow(12.dp, RoundedCornerShape(24.dp)),
+                    shape = RoundedCornerShape(24.dp),
+                    // Quitamos el color de fondo por defecto para usar un Box con degradado
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                    contentPadding = PaddingValues(0.dp) // Importante a 0 para que el Box ocupe todo
                 ) {
-                    Icon(Icons.Default.Stop, contentDescription = null, tint = Color(0xFFFF7043))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "Terminar",
-                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 24.sp),
-                        color = Color(0xFFFF7043)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .background(
+                                Brush.horizontalGradient(
+                                    // Degradado de rojo vivo a rojo oscuro (Alerta/Parar)
+                                    colors = listOf(Color(0xFFEF4444), Color(0xFFB91C1C))
+                                )
+                            )
+                            .padding(horizontal = 28.dp), // Espaciado interior del Box
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            // StopCircle suele verse mucho más amigable y moderno que el Stop cuadrado solo
+                            Icon(
+                                imageVector = Icons.Default.StopCircle,
+                                contentDescription = "Terminar Rutina",
+                                modifier = Modifier.size(30.dp),
+                                tint = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Terminar",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold // Un poco más de peso para que destaque
+                                ),
+                                color = Color.White
+                            )
+                        }
+                    }
                 }
 
                 // Al centro: Botón redondo de Pausa / Reanudar
@@ -420,6 +446,7 @@ fun RestScreen(
     onFinishEarly: () -> Unit,
     systemControl: SystemControl,
     hardwareControl: HardwareControl,
+    speechControl: SpeechControl,
     ledBrightness: Int,
     onLedBrightnessChange: (Int) -> Unit,
     projectorBrightness: Int,
@@ -428,6 +455,10 @@ fun RestScreen(
     onVolumeChange: (Int) -> Unit
 ) {
     var timeLeft by remember { mutableIntStateOf(30) }
+
+    LaunchedEffect(Unit) {
+        speechControl.talk("Tómate un respiro. Respira hondo y relájate durante 30 segundos.")
+    }
 
     // Efecto de respiración
     val infiniteTransition = rememberInfiniteTransition(label = "breath")
@@ -552,24 +583,42 @@ fun RestScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    OutlinedButton(
-                        onClick = onFinishEarly,
+                    Button(
+                        onClick = {
+                            onFinishEarly()
+                        },
                         modifier = Modifier
                             .height(84.dp)
-                            .weight(1f),
-                        shape = MaterialTheme.shapes.medium,
-                        border = BorderStroke(2.dp, Color(0xFFFF7043)),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF7043))
+                            .weight(1f)
+                            .shadow(12.dp, RoundedCornerShape(20.dp)),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                        contentPadding = PaddingValues(0.dp)
                     ) {
-                        Text(
-                            "Terminar por hoy",
-                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 24.sp),
-                            textAlign = TextAlign.Center
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.horizontalGradient(
+                                        colors = listOf(Color(0xFFFF7043), Color(0xFFD32F2F))
+                                    ),
+                                    shape = RoundedCornerShape(20.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "Terminar por hoy",
+                                style = MaterialTheme.typography.titleMedium.copy(fontSize = 24.sp),
+                                textAlign = TextAlign.Center,
+                                color = Color.White
+                            )
+                        }
                     }
 
                     Button(
-                        onClick = onContinue,
+                        onClick = {
+                            onContinue()
+                        },
                         modifier = Modifier
                             .height(84.dp)
                             .weight(1f)
@@ -624,6 +673,7 @@ fun RoutineFinishedScreen(
     systemControl: SystemControl,
     hardwareControl: HardwareControl,
     projectorControl: ProjectorControl,
+    speechControl: SpeechControl,
     ledBrightness: Int,
     onLedBrightnessChange: (Int) -> Unit,
     projectorBrightness: Int,
@@ -650,6 +700,16 @@ fun RoutineFinishedScreen(
         onDispose {
             projectorControl.switchProjector(false)
         }
+    }
+
+    // Mensaje de voz según si completó toda la rutina o terminó antes
+    LaunchedEffect(Unit) {
+        val mensaje = if (completed) {
+            "¡Felicidades! Has completado toda la rutina. Eres increíble."
+        } else {
+            "Buen trabajo por hoy. Has hecho un gran esfuerzo. ¡Sigue así!"
+        }
+        speechControl.talk(mensaje)
     }
 
     val m = totalTimeInSeconds / 60

@@ -19,6 +19,7 @@ import com.sanbot.opensdk.function.beans.EmotionsType
 import com.sanbot.opensdk.function.beans.LED
 import com.unizar.sanbotbasicproject.robotControl.HardwareControl
 import com.unizar.sanbotbasicproject.robotControl.ProjectorControl
+import com.unizar.sanbotbasicproject.robotControl.SpeechControl
 import com.unizar.sanbotbasicproject.robotControl.SystemControl
 import kotlinx.coroutines.delay
 
@@ -30,7 +31,8 @@ fun ExercisePreparationScreen(
     systemControl: SystemControl,
     hardwareControl: HardwareControl,
     projectorControl: ProjectorControl,
-    projectorBrightness: Int
+    projectorBrightness: Int,
+    speechControl: SpeechControl
 ) {
     var timeLeft by remember { mutableIntStateOf(12) }
     val totalTime = 12
@@ -66,7 +68,7 @@ fun ExercisePreparationScreen(
         projectorControl.expectedSetup()
         // Encendemos el láser
         projectorControl.switchProjector(true)
-
+        speechControl.talk(instructionMessage)
         onDispose {
             // No lo apagamos aquí, porque queremos que siga encendido
             // al pasar a la pantalla de ejecución.

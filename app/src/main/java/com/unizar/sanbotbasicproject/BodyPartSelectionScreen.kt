@@ -44,12 +44,9 @@ fun BodyPartSelectionScreen(
     volume: Int,
     onVolumeChange: (Int) -> Unit
 ) {
-    var isListening by remember { mutableStateOf(false) }
+    val isListening = speechControl.isListening
 
-    DisposableEffect(Unit) {
-        speechControl.onListeningStateChanged = { hardwareState ->
-            isListening = hardwareState
-        }
+    DisposableEffect(speechControl) {
         startBodyPartVoiceFlow(
             speechControl = speechControl,
             onOptionSelected = onOptionSelected,
@@ -57,7 +54,7 @@ fun BodyPartSelectionScreen(
             hardwareControl = hardwareControl
         )
         onDispose {
-            speechControl.onListeningStateChanged = null
+            speechControl.stopListening()
         }
     }
 
@@ -285,10 +282,4 @@ fun startBodyPartVoiceFlow(
             }
         }
     }
-}
-
-fun stopBodyPartVoiceFlow(
-    speechControl: SpeechControl
-) {
-    speechControl.stopListening()
 }

@@ -8,10 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MonitorHeart
-import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,7 +28,6 @@ import com.unizar.sanbotbasicproject.robotControl.HardwareControl
 import com.unizar.sanbotbasicproject.robotControl.SpeechControl
 import com.unizar.sanbotbasicproject.robotControl.SystemControl
 import com.unizar.sanbotbasicproject.ui.VoiceHud
-import kotlin.math.roundToInt
 
 @Composable
 fun StartSession(
@@ -46,7 +42,7 @@ fun StartSession(
     volume: Int,
     onVolumeChange: (Int) -> Unit
 ) {
-    var isListening by remember { mutableStateOf(false) }
+    val isListening = speechControl.isListening
 
     // Animación de pulso suave en el botón principal
     val infiniteTransition = rememberInfiniteTransition(label = "startPulse")
@@ -60,11 +56,7 @@ fun StartSession(
         label = "pulseScale"
     )
 
-    DisposableEffect(Unit) {
-        speechControl.onListeningStateChanged = { hardwareState ->
-            isListening = hardwareState
-        }
-
+    DisposableEffect(speechControl) {
         startStartSessionVoiceFlow(
             speechControl = speechControl,
             onStartClick = onStartClick,
@@ -73,7 +65,7 @@ fun StartSession(
         )
 
         onDispose {
-            speechControl.onListeningStateChanged = null
+            speechControl.stopListening()
         }
     }
 
@@ -213,7 +205,7 @@ fun startStartSessionVoiceFlow(
     systemControl.setEmotion(EmotionsType.SMILE)
     hardwareControl.setEarsLED(LED.MODE_BLUE)
 
-    speechControl.ask("Hola, pulsa el botón, tócame la cabeza o dime empezar ejercicio para comenzar") { text ->
+    speechControl.ask("Hola, pulsa el botón o tócame la cabeza para abrir el micrófono") { text ->
         val textoLimpio = text.lowercase()
         Log.d("Speech Control", "Texto limpio: $textoLimpio")
         if ("empezar" in textoLimpio || "ejercicio" in textoLimpio || "comenzar" in textoLimpio) {
@@ -221,10 +213,4 @@ fun startStartSessionVoiceFlow(
             onStartClick()
         }
     }
-}
-
-fun stopStartSessionVoiceFlow(
-    speechControl: SpeechControl
-) {
-    speechControl.stopListening()
 }

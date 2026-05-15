@@ -1,6 +1,5 @@
 package com.unizar.sanbotbasicproject
 
-import android.content.Context
 import android.media.AudioManager
 import android.os.Bundle
 import android.util.Log
@@ -40,6 +39,7 @@ import com.sanbot.opensdk.function.unit.ProjectorManager
 import com.unizar.sanbotbasicproject.robotControl.ProjectorControl
 import com.sanbot.opensdk.function.unit.interfaces.hardware.TouchSensorListener
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.ui.graphics.Color
 
 class MainActivity : TopBaseActivity() {
     private var isRobotReady by mutableStateOf(false)
@@ -62,7 +62,7 @@ class MainActivity : TopBaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         Log.d("MainActivity", "onCreate: Registrando actividad")
         register(MainActivity::class.java)
-        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         window.setFlags(
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
@@ -239,7 +239,8 @@ class MainActivity : TopBaseActivity() {
                                     systemControl = systemControl,
                                     hardwareControl = hardwareControl,
                                     projectorControl = projectorControl,
-                                    projectorBrightness = projectorBrightness
+                                    projectorBrightness = projectorBrightness,
+                                    speechControl = speechControl,
                                 )
                             }
                         }
@@ -274,19 +275,6 @@ class MainActivity : TopBaseActivity() {
                                     hardwareControl = hardwareControl,
                                     externalPauseTrigger = headTouchTrigger,
                                     speechControl = speechControl,
-                                    projectorControl = projectorControl,
-                                    ledBrightness = ledBrightness,
-                                    onLedBrightnessChange = {
-                                        ledBrightness = it
-                                        hardwareControl.setLEDBrightness(it)
-                                    },
-                                    projectorBrightness = projectorBrightness,
-                                    onProjectorBrightnessChange = { projectorBrightness = it },
-                                    volume = volume,
-                                    onVolumeChange = {
-                                        volume = it
-                                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
-                                    }
                                 )
                             }
                         }
@@ -320,7 +308,8 @@ class MainActivity : TopBaseActivity() {
                                 onVolumeChange = {
                                     volume = it
                                     audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
-                                }
+                                },
+                                speechControl = speechControl
                             )
                         }
 
@@ -356,7 +345,8 @@ class MainActivity : TopBaseActivity() {
                                 onVolumeChange = {
                                     volume = it
                                     audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, it, 0)
-                                }
+                                },
+                                speechControl = speechControl
                             )
                         }
                     }
@@ -369,7 +359,7 @@ class MainActivity : TopBaseActivity() {
                             Text(text = "Conectando con el robot...")
                             initErrorMessage?.let {
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text(text = it, color = androidx.compose.ui.graphics.Color.Red)
+                                Text(text = it, color = Color.Red)
                             }
 
                             Spacer(modifier = Modifier.height(24.dp))
